@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0 — 2026-04-24
+
+Line-range pinning. A note can pin to just the lines it documents, so unrelated edits elsewhere in the file don't falsely flag it stale.
+
+- `--refs path/to/file.py:12-84` pins SHA over lines 12–84 (1-indexed, inclusive). `:42` pins a single line.
+- `verify.compute_range_sha` slices the file to the pinned range before hashing. When `lines` is null, behaves exactly as v0.3 (whole-file SHA).
+- `Reference.lines` now strictly validated: must be `[start, end]` with `1 <= start <= end`. Tightened from any-positive-list.
+- `--from` drafts: when a reference's frontmatter sets `lines: [start, end]`, the SHA is pinned to that range automatically.
+- 137 tests, ruff clean.
+
 ## 0.3.0 — 2026-04-24
 
 Closes the feedback loop: notes get nudged at the moment of drift, not just at the next `verify`.

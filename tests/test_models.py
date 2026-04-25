@@ -37,6 +37,20 @@ class TestReference:
         r = Reference(path="x", lines=[])
         assert r.lines is None
 
+    def test_lines_must_be_exactly_two(self):
+        with pytest.raises(ValueError):
+            Reference(path="x", lines=[1])
+        with pytest.raises(ValueError):
+            Reference(path="x", lines=[1, 2, 3])
+
+    def test_lines_start_must_be_le_end(self):
+        with pytest.raises(ValueError):
+            Reference(path="x", lines=[10, 5])
+
+    def test_lines_equal_start_and_end_ok(self):
+        r = Reference(path="x", lines=[42, 42])
+        assert r.lines == [42, 42]
+
 
 class TestNote:
     def _kw(self, **over):

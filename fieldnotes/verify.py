@@ -50,6 +50,26 @@ def compute_sha(path: Path) -> str | None:
     return h.hexdigest()
 
 
+def compute_range_sha(path: Path, lines: list[int] | None) -> str | None:
+    """Return the sha256 of `path` over the given [start, end] line range (inclusive,
+    1-indexed). Falls back to whole-file sha when `lines` is None/empty.
+    Returns None if the file doesn't exist."""
+    if not path.exists() or not path.is_file():
+        return None
+    if not lines:
+        return compute_sha(path)
+    start, end = lines[0], lines[1]
+    raw = path.read_bytes()
+    file_lines = raw.splitlines(keepends=True)
+    if start > len(file_lines):
+        return hashlib.sha256(b"").hexdigest()
+    sliced = file_lines[start - 1 : end]
+    h = hashlib.sha256()
+    for line in sliced:
+        h.update(line)
+    return h.hexdigest()
+
+
 def _resolve_ref_path(repo_root: Path, ref: Reference) -> Path:
     p = Path(ref.path)
     if not p.is_absolute():
@@ -58,7 +78,7 @@ def _resolve_ref_path(repo_root: Path, ref: Reference) -> Path:
 
 
 def check_reference(repo_root: Path, ref: Reference) -> ReferenceStatus:
-    actual = compute_sha(_resolve_ref_path(repo_root, ref))
+    actual = compute_range_sha(_resolve_ref_path(repo_root, ref), ref.lines)
     if actual is None:
         return ReferenceStatus(reference=ref, state="missing", actual_sha=None)
     if ref.sha is None:

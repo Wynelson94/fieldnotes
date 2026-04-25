@@ -50,8 +50,13 @@ class Reference(BaseModel):
             return v
         if not v:
             return None
-        if any(n < 1 for n in v):
+        if len(v) != 2:
+            raise ValueError("lines must be exactly [start, end] (1-indexed, inclusive)")
+        start, end = v
+        if start < 1 or end < 1:
             raise ValueError("line numbers must be >= 1")
+        if start > end:
+            raise ValueError("lines start must be <= end")
         return v
 
 

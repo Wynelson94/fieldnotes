@@ -108,6 +108,35 @@ The body is plain markdown. The frontmatter and SHA pins do the heavy lifting; t
 
 All commands accept `--repo PATH`. Default: walk up from cwd until a `.fieldnotes/` is found.
 
+## Pinning to a line range, not the whole file
+
+By default, `--refs path/to/file.py` pins the SHA of the entire file. If the note describes a single function or block, that's too coarse — an unrelated edit elsewhere in the file would falsely flag the note as stale.
+
+Two extra forms let you be precise:
+
+```bash
+# Pin to lines 12 through 84 (1-indexed, inclusive):
+fieldnotes add --topic ... --title ... --body ... \
+  --refs fieldnotes/cli.py:12-84
+
+# Pin to a single line:
+fieldnotes add ... --refs fieldnotes/cli.py:42
+
+# Mix freely:
+fieldnotes add ... --refs fieldnotes/cli.py:213-237,pyproject.toml
+```
+
+When a range is pinned, `verify` hashes only that slice. Edits anywhere else in the file leave the note's SHA intact. Edits inside the range surface as stale, exactly as they should.
+
+In a `--from` draft, the same precision is available via the `lines` field:
+
+```yaml
+references:
+  - path: fieldnotes/cli.py
+    lines: [213, 237]
+  - path: pyproject.toml
+```
+
 ## Authoring with `--from`
 
 The seven-flag `add` invocation gets old fast. For real notes, write them as a markdown file and pipe through:
@@ -196,7 +225,9 @@ Append-only is deliberate. If a note turns out to be wrong, supersede it (`field
 
 ## Status
 
-**v0.3.0** — closes the feedback loop. Adds `touched` (PostToolUse-shaped) and `install-hooks`. Notes now get nudged at the moment of drift, not just at the next `verify`.
+**v0.4.0** — line-range pinning. A note can pin to just the lines it documents (`--refs path:12-84`), so unrelated edits elsewhere in the file don't falsely flag it stale. Tighter `lines` validation: must be `[start, end]`, 1-indexed, inclusive.
+
+v0.3.0 — closes the feedback loop with `touched` (PostToolUse-shaped) and `install-hooks`. Notes get nudged at the moment of drift.
 
 v0.2.0 — adds `for`, `brief`, and `add --from`. Makes the tool ambient via SessionStart hooks.
 

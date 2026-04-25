@@ -4,10 +4,10 @@ id: '0002'
 references:
 - lines: null
   path: fieldnotes/verify.py
-  sha: 4f6b6755e2ec3753cacf10bc170c6fde43af76f0e8a6918f3f6f37c58b16ffbc
+  sha: 43b465b92e80ddde3c2583cce254ce6f7e6a00a6f391418c325126e06f99236a
 - lines: null
   path: fieldnotes/models.py
-  sha: 462aefd1ad660c5aec057da550126baa66309192bc2dce213f31fcdf3703e214
+  sha: bbd0b7c54cb38f8cad6e663ec74affa5939408a38941b8d98eb621bfbdbf8749
 session_id: null
 superseded_by: null
 supersedes: null

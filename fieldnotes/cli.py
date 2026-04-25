@@ -32,7 +32,7 @@ from fieldnotes.store import (
     to_repo_relative,
     write_note,
 )
-from fieldnotes.verify import check_note, compute_sha, update_shas
+from fieldnotes.verify import check_note, compute_range_sha, update_shas
 
 app = typer.Typer(
     add_completion=False,
@@ -191,7 +191,7 @@ def _note_from_draft(
         target = Path(ref.path)
         if not target.is_absolute():
             target = repo_root / target
-        sha = compute_sha(target)
+        sha = compute_range_sha(target, ref.lines)
         if sha is None:
             err_console.print(
                 f"[yellow]warning[/yellow]: ref path not found: {ref.path} (sha left null)"
@@ -210,6 +210,32 @@ def _read_body(arg: str) -> str:
     return arg
 
 
+def _parse_ref_spec(spec: str) -> tuple[str, list[int] | None]:
+    """Parse a ref spec into (path, lines_or_None).
+
+    Forms:
+      `path/to/file.py`         -> whole file
+      `path/to/file.py:42`      -> single line, [42, 42]
+      `path/to/file.py:12-84`   -> range [12, 84]
+    """
+    if ":" not in spec:
+        return spec, None
+    path, _, range_part = spec.rpartition(":")
+    if not range_part or not path:
+        return spec, None
+    if "-" in range_part:
+        a, b = range_part.split("-", 1)
+        try:
+            return path, [int(a), int(b)]
+        except ValueError:
+            return spec, None
+    try:
+        n = int(range_part)
+    except ValueError:
+        return spec, None
+    return path, [n, n]
+
+
 def _build_refs(repo_root: Path, refs: str | None) -> list[Reference]:
     if not refs:
         return []
@@ -218,13 +244,16 @@ def _build_refs(repo_root: Path, refs: str | None) -> list[Reference]:
         raw = raw.strip()
         if not raw:
             continue
-        target = Path(raw)
+        ref_path, lines = _parse_ref_spec(raw)
+        target = Path(ref_path)
         if not target.is_absolute():
             target = repo_root / target
-        sha = compute_sha(target)
+        sha = compute_range_sha(target, lines)
         if sha is None:
-            err_console.print(f"[yellow]warning[/yellow]: ref path not found: {raw} (sha left null)")
-        out.append(Reference(path=raw, sha=sha))
+            err_console.print(
+                f"[yellow]warning[/yellow]: ref path not found: {ref_path} (sha left null)"
+            )
+        out.append(Reference(path=ref_path, sha=sha, lines=lines))
     return out
 
 
