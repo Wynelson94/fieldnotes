@@ -4,7 +4,7 @@ id: '0001'
 references:
 - lines: null
   path: fieldnotes/cli.py
-  sha: 516665488c8b0548afeebbab168fab57902cd023e9d404d4bb13f0af9d92ae2a
+  sha: 25e65a09565383adc71c0bb8a81b7b7293f6d911aebb8706df6bb9feca4a39a7
 - lines: null
   path: pyproject.toml
   sha: 35b91433aedd04dfd6ce8c7abb1c6b6c46f24b6f1b30b3fd56426b3f3e07b3f8

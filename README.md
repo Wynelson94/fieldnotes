@@ -93,7 +93,9 @@ The body is plain markdown. The frontmatter and SHA pins do the heavy lifting; t
 | Command | Purpose |
 |---|---|
 | `fieldnotes init [PATH]` | Scaffold `.fieldnotes/` in the given dir (or cwd). Idempotent. |
-| `fieldnotes add ...` | Create a note. See `fieldnotes add --help`. |
+| `fieldnotes add ...` | Create a note via flags, or `--from draft.md` to read a markdown+frontmatter file. |
+| `fieldnotes for <path>` | List every note that references a given source file. |
+| `fieldnotes brief` | Compact session-start summary. Silent when no `.fieldnotes/` exists — safe to wire as a hook. |
 | `fieldnotes list [--tag T] [--confidence C] [--stale] [--json]` | List notes. |
 | `fieldnotes get <id-or-topic>` | Print a single note. |
 | `fieldnotes verify [--update] [--json]` | Recompute SHAs; report drift. `--update` re-pins. |
@@ -103,6 +105,59 @@ The body is plain markdown. The frontmatter and SHA pins do the heavy lifting; t
 | `fieldnotes supersede <id> --title ... --body ...` | Replace an existing note; old one is marked `superseded_by`. |
 
 All commands accept `--repo PATH`. Default: walk up from cwd until a `.fieldnotes/` is found.
+
+## Authoring with `--from`
+
+The seven-flag `add` invocation gets old fast. For real notes, write them as a markdown file and pipe through:
+
+```markdown
+---
+topic: cli-entry-points
+title: How the CLI is wired
+confidence: high
+written_by: claude-opus-4-7
+tags: [cli, typer]
+references:
+  - path: fieldnotes/cli.py
+  - path: pyproject.toml
+---
+
+# How the CLI is wired
+
+Body markdown here…
+```
+
+```bash
+fieldnotes add --from draft.md
+```
+
+`id` and `written_at` are always auto-assigned (any values you put in the draft are ignored). SHAs are computed at write time — you don't pin them in the draft.
+
+## Wiring as a Claude Code SessionStart hook
+
+`fieldnotes brief` exits silently when no `.fieldnotes/` directory is found, which makes it safe to wire as a global hook. Add to `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "fieldnotes brief 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+When you start a session in a repo that has fieldnotes, you'll see a compact summary at the top: total note count, any stale notes, and notes touching recently-changed files (uncommitted + last 5 commits via git). When you start a session in a repo that doesn't, nothing happens.
+
+The point is: stop having to remember the tool exists.
 
 ## Reference states
 
@@ -125,7 +180,9 @@ Append-only is deliberate. If a note turns out to be wrong, supersede it (`field
 
 ## Status
 
-v0.1.0 — initial release. The format is stable. Tooling around it (Claude Code hooks, semantic search, multi-repo aggregation) lands in later releases.
+**v0.2.0** — adds `for`, `brief`, and `add --from`. The format from v0.1 is unchanged. Multi-repo aggregation and semantic search are still parking-lotted.
+
+v0.1.0 — initial release.
 
 ## Author
 

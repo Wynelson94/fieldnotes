@@ -157,3 +157,31 @@ def list_notes(repo_root: Path) -> list[tuple[Note, Path]]:
             continue
         out.append((note, p))
     return out
+
+
+def to_repo_relative(repo_root: Path, p: Path | str) -> str:
+    """Normalize a path to a repo-relative posix string for matching."""
+    pp = Path(p)
+    if pp.is_absolute():
+        try:
+            return pp.resolve().relative_to(repo_root.resolve()).as_posix()
+        except ValueError:
+            return pp.as_posix()
+    s = pp.as_posix()
+    while s.startswith("./"):
+        s = s[2:]
+    return s
+
+
+def notes_referencing(
+    repo_root: Path, target: Path | str
+) -> list[tuple[Note, Path]]:
+    """Return notes whose references include `target`, repo-relative match."""
+    rel = to_repo_relative(repo_root, target)
+    out: list[tuple[Note, Path]] = []
+    for note, path in list_notes(repo_root):
+        for ref in note.references:
+            if to_repo_relative(repo_root, ref.path) == rel:
+                out.append((note, path))
+                break
+    return out

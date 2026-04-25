@@ -7,11 +7,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
+import frontmatter
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from fieldnotes import __version__
+from fieldnotes.brief import build_brief
 from fieldnotes.index import rebuild_index
 from fieldnotes.models import Confidence, Note, Reference
 from fieldnotes.search import search as do_search
@@ -23,6 +25,7 @@ from fieldnotes.store import (
     init_repo,
     list_notes,
     next_id,
+    notes_referencing,
     parse_note_file,
     read_note,
     write_note,
@@ -87,57 +90,114 @@ def init(
 
 @app.command()
 def add(
-    topic: Annotated[str, typer.Option("--topic", help="kebab-case slug, e.g. 'cli-entry-points'")],
-    title: Annotated[str, typer.Option("--title", help="Human-readable title.")],
+    from_: Annotated[
+        Path | None,
+        typer.Option(
+            "--from",
+            help="Read the whole note (frontmatter + body) from a markdown file. Use '-' for stdin.",
+        ),
+    ] = None,
+    topic: Annotated[
+        str | None,
+        typer.Option("--topic", help="kebab-case slug, e.g. 'cli-entry-points'"),
+    ] = None,
+    title: Annotated[str | None, typer.Option("--title", help="Human-readable title.")] = None,
     body: Annotated[
-        str,
+        str | None,
         typer.Option(
             "--body",
-            help="Body markdown. Use '@path/to/file.md' to read from file, or '-' to read stdin.",
+            help="Body markdown. '@path/to/file.md' to read from file, '-' to read stdin.",
         ),
-    ],
+    ] = None,
     refs: Annotated[
         str | None,
-        typer.Option("--refs", help="Comma-separated source paths to pin (sha256 captured at write)."),
+        typer.Option(
+            "--refs",
+            help="Comma-separated source paths to pin (sha256 captured at write).",
+        ),
     ] = None,
     confidence: Annotated[
         Confidence,
         typer.Option("--confidence", help="high | medium | speculation"),
     ] = Confidence.MEDIUM,
-    tags: Annotated[
-        str | None,
-        typer.Option("--tags", help="Comma-separated tags."),
-    ] = None,
+    tags: Annotated[str | None, typer.Option("--tags", help="Comma-separated tags.")] = None,
     written_by: Annotated[
         str,
         typer.Option("--written-by", help="Author identifier — e.g. 'claude-opus-4-7'."),
     ] = "unknown",
     session_id: Annotated[
         str | None,
-        typer.Option("--session-id", help="Optional session identifier (e.g. Claude Code session uuid)."),
+        typer.Option("--session-id", help="Optional session identifier."),
     ] = None,
     repo: RepoOpt = None,
 ) -> None:
-    """Add a new note. Auto-runs `index` afterward."""
+    """Add a new note. Use --from for a full draft markdown file, or the flags."""
     repo_root = _resolve_repo(repo)
-    body_text = _read_body(body)
-    refs_list = _build_refs(repo_root, refs)
-    tag_list = [t.strip() for t in tags.split(",")] if tags else []
-    nid = next_id(repo_root)
-    note = Note(
-        id=nid,
-        topic=topic,
-        title=title,
-        confidence=confidence,
-        written_by=written_by,
-        written_at=datetime.now(timezone.utc),
-        session_id=session_id,
-        tags=tag_list,
-        references=refs_list,
-    )
+    if from_ is not None:
+        note, body_text = _note_from_draft(repo_root, from_, written_by, session_id)
+    else:
+        if topic is None or title is None or body is None:
+            err_console.print(
+                "[red]add requires either --from FILE, or all of --topic, --title, --body[/red]"
+            )
+            raise typer.Exit(code=2)
+        body_text = _read_body(body)
+        refs_list = _build_refs(repo_root, refs)
+        tag_list = [t.strip() for t in tags.split(",")] if tags else []
+        note = Note(
+            id=next_id(repo_root),
+            topic=topic,
+            title=title,
+            confidence=confidence,
+            written_by=written_by,
+            written_at=datetime.now(timezone.utc),
+            session_id=session_id,
+            tags=tag_list,
+            references=refs_list,
+        )
     path = write_note(repo_root, note, body_text)
     rebuild_index(repo_root)
-    console.print(f"[green]wrote[/green] {path.relative_to(repo_root)}  id={nid}")
+    console.print(f"[green]wrote[/green] {path.relative_to(repo_root)}  id={note.id}")
+
+
+def _note_from_draft(
+    repo_root: Path,
+    src: Path,
+    fallback_written_by: str,
+    fallback_session_id: str | None,
+) -> tuple[Note, str]:
+    """Parse a draft markdown file into a Note + body. Auto-assigns id and written_at,
+    pins SHAs for references."""
+    text = sys.stdin.read() if str(src) == "-" else Path(src).read_text()
+    post = frontmatter.loads(text)
+    meta = dict(post.metadata)
+    # Auto-assigned fields override anything in the draft.
+    meta["id"] = next_id(repo_root)
+    meta["written_at"] = datetime.now(timezone.utc)
+    meta.setdefault("written_by", fallback_written_by)
+    if fallback_session_id is not None:
+        meta.setdefault("session_id", fallback_session_id)
+    # Refs in the draft may have no sha — pin them now.
+    pinned_refs: list[Reference] = []
+    for raw in meta.get("references", []) or []:
+        if isinstance(raw, Reference):
+            ref = raw
+        elif isinstance(raw, dict):
+            ref = Reference(**raw)
+        else:
+            ref = Reference(path=str(raw))
+        target = Path(ref.path)
+        if not target.is_absolute():
+            target = repo_root / target
+        sha = compute_sha(target)
+        if sha is None:
+            err_console.print(
+                f"[yellow]warning[/yellow]: ref path not found: {ref.path} (sha left null)"
+            )
+        pinned_refs.append(Reference(path=ref.path, sha=sha, lines=ref.lines))
+    meta["references"] = [r.model_dump() for r in pinned_refs]
+    note = Note(**meta)
+    return note, post.content
 
 
 def _read_body(arg: str) -> str:
@@ -406,5 +466,74 @@ def supersede(
         f"  old: {old_path.relative_to(repo_root)}\n"
         f"  new: {new_path.relative_to(repo_root)}"
     )
+
+
+@app.command(name="for")
+def for_cmd(
+    path: Annotated[
+        str, typer.Argument(help="File path (relative to repo root, or absolute).")
+    ],
+    json_out: Annotated[bool, typer.Option("--json", help="Emit JSON.")] = False,
+    repo: RepoOpt = None,
+) -> None:
+    """List every note that references a given file."""
+    repo_root = _resolve_repo(repo)
+    hits = notes_referencing(repo_root, path)
+    if json_out:
+        out = [
+            {
+                "id": n.id,
+                "topic": n.topic,
+                "title": n.title,
+                "confidence": n.confidence.value,
+                "tags": n.tags,
+                "path": str(p.relative_to(repo_root)),
+            }
+            for n, p in hits
+        ]
+        console.print_json(data=out)
+        return
+    if not hits:
+        console.print(f"[dim]no notes reference[/dim] {path}")
+        return
+    table = Table(title=f"notes referencing {path} ({len(hits)})")
+    table.add_column("id", style="cyan")
+    table.add_column("topic")
+    table.add_column("title")
+    table.add_column("conf")
+    for n, _p in hits:
+        table.add_row(n.id, n.topic, n.title, n.confidence.value)
+    console.print(table)
+
+
+@app.command()
+def brief(
+    repo: RepoOpt = None,
+) -> None:
+    """Compact session-start summary. Designed for Claude Code SessionStart hooks.
+
+    Silent (exit 0) when no .fieldnotes/ exists in cwd or its parents — safe to
+    wire into a hook unconditionally.
+    """
+    try:
+        repo_root = find_repo_root(Path(repo) if repo is not None else Path.cwd())
+    except RepoNotInitializedError:
+        return
+    b = build_brief(repo_root)
+    if b.total == 0:
+        return
+    console.print(f"[bold]fieldnotes[/bold] · {b.total} note(s) at {repo_root.name}")
+    if b.stale:
+        console.print(f"  [red]{len(b.stale)} stale[/red] — run `fieldnotes verify`")
+        for s in b.stale[:5]:
+            console.print(f"    · {s.note.id} {s.note.title}")
+    if b.by_recent_path:
+        console.print("  [bold]touching recent changes:[/bold]")
+        for path, hits in b.by_recent_path:
+            console.print(f"    [cyan]{path}[/cyan]")
+            for n, _p in hits:
+                console.print(
+                    f"      · {n.id} {n.title}  [dim]({n.confidence.value})[/dim]"
+                )
 
 
