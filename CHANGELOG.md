@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0 — 2026-04-24
+
+Make it actually live. The hook snippet was technically correct but practically broken: Claude Code hook subshells don't inherit your interactive PATH, so `fieldnotes brief` would silently fail unless you'd installed fieldnotes globally.
+
+- `fieldnotes install-hooks --apply` now resolves the binary's absolute path via `shutil.which` and bakes it into the hook command. Same pattern Longhand uses. Refuses to apply if `fieldnotes` isn't on PATH from the resolving shell, with a clear message about installing into the framework Python.
+- `--bare` flag on `install-hooks` opts back into the relative `fieldnotes` form for users who do have it globally.
+- New `fieldnotes doctor` command. Reports: binary on PATH, package importable, hooks present (and pointing at the right binary), `.fieldnotes/` in cwd. Each failing check comes with a fix.
+- README: rewrote the hooks section as a three-step "actually live" flow (install into framework Python → install-hooks → doctor) instead of a one-line `--apply`.
+- 181 tests, ruff clean.
+
 ## 0.5.0 — 2026-04-24
 
 Symbol pinning. `--refs path:symbol_name` is now the most resilient way to anchor a note to a function or method.

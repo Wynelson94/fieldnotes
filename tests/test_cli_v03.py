@@ -119,8 +119,13 @@ class TestMergeHooks:
 
 
 class TestInstallHooks:
+    """Legacy tests use --bare to skip the absolute-path resolution.
+
+    Tests for the v0.6 absolute-path resolver live in TestInstallHooksAbsolute.
+    """
+
     def test_dry_run_prints_snippet(self):
-        result = runner.invoke(app, ["install-hooks"])
+        result = runner.invoke(app, ["install-hooks", "--bare"])
         assert result.exit_code == 0
         assert "fieldnotes hooks" in result.output
         assert "fieldnotes brief" in result.output
@@ -128,7 +133,9 @@ class TestInstallHooks:
 
     def test_apply_creates_file(self, tmp_path: Path):
         target = tmp_path / "settings.json"
-        result = runner.invoke(app, ["install-hooks", "--apply", "--to", str(target)])
+        result = runner.invoke(
+            app, ["install-hooks", "--bare", "--apply", "--to", str(target)]
+        )
         assert result.exit_code == 0
         assert target.exists()
         data = json.loads(target.read_text())
@@ -138,9 +145,11 @@ class TestInstallHooks:
 
     def test_apply_is_idempotent(self, tmp_path: Path):
         target = tmp_path / "settings.json"
-        runner.invoke(app, ["install-hooks", "--apply", "--to", str(target)])
+        runner.invoke(app, ["install-hooks", "--bare", "--apply", "--to", str(target)])
         before = target.read_text()
-        result = runner.invoke(app, ["install-hooks", "--apply", "--to", str(target)])
+        result = runner.invoke(
+            app, ["install-hooks", "--bare", "--apply", "--to", str(target)]
+        )
         assert result.exit_code == 0
         assert "nothing changed" in result.output or "already present" in result.output
         assert target.read_text() == before
@@ -148,7 +157,9 @@ class TestInstallHooks:
     def test_apply_preserves_existing_unrelated(self, tmp_path: Path):
         target = tmp_path / "settings.json"
         target.write_text(json.dumps({"theme": "dark", "hooks": {}}))
-        result = runner.invoke(app, ["install-hooks", "--apply", "--to", str(target)])
+        result = runner.invoke(
+            app, ["install-hooks", "--bare", "--apply", "--to", str(target)]
+        )
         assert result.exit_code == 0
         data = json.loads(target.read_text())
         assert data["theme"] == "dark"
@@ -157,12 +168,59 @@ class TestInstallHooks:
     def test_apply_handles_malformed_settings(self, tmp_path: Path):
         target = tmp_path / "settings.json"
         target.write_text("{ this is not json")
-        result = runner.invoke(app, ["install-hooks", "--apply", "--to", str(target)])
+        result = runner.invoke(
+            app, ["install-hooks", "--bare", "--apply", "--to", str(target)]
+        )
         assert result.exit_code == 1
         assert "could not parse" in result.output
 
     def test_apply_creates_parent_dirs(self, tmp_path: Path):
         target = tmp_path / "deep" / "nested" / "settings.json"
-        result = runner.invoke(app, ["install-hooks", "--apply", "--to", str(target)])
+        result = runner.invoke(
+            app, ["install-hooks", "--bare", "--apply", "--to", str(target)]
+        )
         assert result.exit_code == 0
         assert target.exists()
+
+
+class TestInstallHooksAbsolute:
+    """v0.6 absolute-path behavior."""
+
+    def test_uses_resolved_binary_path(self, tmp_path: Path, monkeypatch):
+        fake_path = "/abs/path/to/fieldnotes"
+        monkeypatch.setattr("fieldnotes.cli.shutil.which", lambda _: fake_path)
+        target = tmp_path / "settings.json"
+        result = runner.invoke(app, ["install-hooks", "--apply", "--to", str(target)])
+        assert result.exit_code == 0, result.output
+        data = json.loads(target.read_text())
+        ss_cmd = data["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+        ptu_cmd = data["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
+        assert ss_cmd.startswith(fake_path + " brief")
+        assert ptu_cmd.startswith(fake_path + " touched")
+
+    def test_refuses_when_binary_not_on_path(self, tmp_path: Path, monkeypatch):
+        monkeypatch.setattr("fieldnotes.cli.shutil.which", lambda _: None)
+        target = tmp_path / "settings.json"
+        result = runner.invoke(app, ["install-hooks", "--apply", "--to", str(target)])
+        assert result.exit_code == 1
+        assert "not on PATH" in result.output
+        assert not target.exists()
+
+    def test_dry_run_shows_resolved_binary(self, monkeypatch):
+        fake_path = "/abs/path/to/fieldnotes"
+        monkeypatch.setattr("fieldnotes.cli.shutil.which", lambda _: fake_path)
+        result = runner.invoke(app, ["install-hooks"])
+        assert result.exit_code == 0
+        assert fake_path in result.output
+
+    def test_bare_flag_bypasses_resolution(self, tmp_path: Path, monkeypatch):
+        # Even when which would fail, --bare succeeds.
+        monkeypatch.setattr("fieldnotes.cli.shutil.which", lambda _: None)
+        target = tmp_path / "settings.json"
+        result = runner.invoke(
+            app, ["install-hooks", "--bare", "--apply", "--to", str(target)]
+        )
+        assert result.exit_code == 0
+        data = json.loads(target.read_text())
+        cmd = data["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+        assert cmd.startswith("fieldnotes brief")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +16,7 @@ from rich.table import Table
 
 from fieldnotes import __version__
 from fieldnotes.brief import build_brief
+from fieldnotes.doctor import run_diagnostics
 from fieldnotes.index import rebuild_index
 from fieldnotes.models import SYMBOL_RE, Confidence, Note, Reference
 from fieldnotes.search import search as do_search
@@ -650,32 +652,41 @@ def touched(
     )
 
 
-_HOOK_SNIPPET = {
-    "hooks": {
-        "SessionStart": [
-            {
-                "matcher": "*",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "fieldnotes brief 2>/dev/null || true",
-                    }
-                ],
-            }
-        ],
-        "PostToolUse": [
-            {
-                "matcher": "Edit|Write|MultiEdit",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "fieldnotes touched --stdin 2>/dev/null || true",
-                    }
-                ],
-            }
-        ],
+def _build_hook_snippet(binary: str = "fieldnotes") -> dict:
+    """Build the Claude Code hook snippet around a binary path.
+
+    `binary` is the command (or absolute path) used to invoke fieldnotes.
+    """
+    return {
+        "hooks": {
+            "SessionStart": [
+                {
+                    "matcher": "*",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": f"{binary} brief 2>/dev/null || true",
+                        }
+                    ],
+                }
+            ],
+            "PostToolUse": [
+                {
+                    "matcher": "Edit|Write|MultiEdit",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": f"{binary} touched --stdin 2>/dev/null || true",
+                        }
+                    ],
+                }
+            ],
+        }
     }
-}
+
+
+# Kept for backwards compat with tests / other callers — relative form.
+_HOOK_SNIPPET = _build_hook_snippet("fieldnotes")
 
 
 def _hook_entry_eq(a: dict, b: dict) -> bool:
@@ -713,20 +724,51 @@ def install_hooks(
         Path | None,
         typer.Option("--to", help="Target settings.json. Default: ~/.claude/settings.json"),
     ] = None,
+    bare: Annotated[
+        bool,
+        typer.Option(
+            "--bare",
+            help="Use the relative `fieldnotes` command instead of an absolute path. "
+            "Only works if fieldnotes is on the PATH that hook subshells inherit.",
+        ),
+    ] = False,
 ) -> None:
     """Print (or apply) Claude Code hooks: SessionStart `brief` + PostToolUse `touched`.
 
     Idempotent: re-running with --apply will not duplicate existing entries.
+
+    Resolves the `fieldnotes` binary via shutil.which and writes its absolute
+    path into the hook command — Claude Code hook subshells often don't inherit
+    the interactive PATH, so the absolute form is the reliable default. Pass
+    --bare to use the relative form anyway.
     """
     target = to or Path.home() / ".claude" / "settings.json"
+
+    binary = "fieldnotes"
+    if not bare:
+        resolved = shutil.which("fieldnotes")
+        if resolved is None:
+            err_console.print(
+                "[red]fieldnotes is not on PATH from this shell.[/red]\n"
+                "Install it into the Python that hosts your other CLI agents, e.g.:\n"
+                "  /Library/Frameworks/Python.framework/Versions/3.14/bin/python3 "
+                "-m pip install -e <repo>\n"
+                "Or pass --bare to write `fieldnotes` and resolve PATH yourself."
+            )
+            raise typer.Exit(code=1)
+        binary = resolved
+
+    snippet = _build_hook_snippet(binary)
+
     if not apply:
         console.print(
             "[bold]fieldnotes hooks[/bold]  "
             "(rerun with --apply to write to your settings.json)"
         )
         console.print()
-        console.print_json(data=_HOOK_SNIPPET)
+        console.print_json(data=snippet)
         console.print()
+        console.print(f"[dim]Binary: {binary}[/dim]")
         console.print(f"[dim]Default target: {target}[/dim]")
         return
     existing: dict = {}
@@ -738,12 +780,43 @@ def install_hooks(
             except json.JSONDecodeError as exc:
                 err_console.print(f"[red]could not parse {target}: {exc}[/red]")
                 raise typer.Exit(code=1) from exc
-    merged, added = _merge_hooks(existing, _HOOK_SNIPPET["hooks"])
+    merged, added = _merge_hooks(existing, snippet["hooks"])
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(merged, indent=2) + "\n")
     if added == 0:
         console.print(f"[dim]hooks already present in {target} — nothing changed[/dim]")
     else:
         console.print(f"[green]added[/green] {added} hook entr(ies) to {target}")
+    console.print(f"[dim]binary: {binary}[/dim]")
+
+
+@app.command()
+def doctor(
+    settings: Annotated[
+        Path | None,
+        typer.Option(
+            "--settings",
+            help="Settings.json to check. Default: ~/.claude/settings.json",
+        ),
+    ] = None,
+) -> None:
+    """Diagnose the fieldnotes installation: binary on PATH, hooks wired, .fieldnotes/ in cwd."""
+    report = run_diagnostics(settings_path=settings, cwd=Path.cwd())
+    table = Table(title="fieldnotes doctor", show_header=False, box=None, pad_edge=False)
+    table.add_column("status", width=2)
+    table.add_column("name")
+    table.add_column("detail", overflow="fold")
+    for c in report.checks:
+        marker = "[green]✓[/green]" if c.ok else "[red]✗[/red]"
+        table.add_row(marker, c.name, c.detail)
+    console.print(table)
+    fixes = [c for c in report.checks if not c.ok and c.fix]
+    if fixes:
+        console.print()
+        console.print("[bold]How to fix[/bold]")
+        for c in fixes:
+            console.print(f"  [yellow]{c.name}[/yellow]: {c.fix}")
+    if not report.all_ok:
+        raise typer.Exit(code=1)
 
 

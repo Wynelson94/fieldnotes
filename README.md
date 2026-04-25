@@ -97,7 +97,8 @@ The body is plain markdown. The frontmatter and SHA pins do the heavy lifting; t
 | `fieldnotes for <path>` | List every note that references a given source file. |
 | `fieldnotes brief` | Compact session-start summary. Silent when no `.fieldnotes/` exists — safe to wire as a hook. |
 | `fieldnotes touched <path>` | Quietly surface notes that reference an edited file. Silent on no match. Designed for PostToolUse hooks. |
-| `fieldnotes install-hooks [--apply]` | Print (or apply) the Claude Code hook snippet. Idempotent. |
+| `fieldnotes install-hooks [--apply] [--bare]` | Print (or apply) the Claude Code hook snippet. Idempotent. Resolves an absolute path to the installed binary unless `--bare`. |
+| `fieldnotes doctor` | Diagnose the installation: binary on PATH, hooks wired, .fieldnotes/ in cwd. |
 | `fieldnotes list [--tag T] [--confidence C] [--stale] [--json]` | List notes. |
 | `fieldnotes get <id-or-topic>` | Print a single note. |
 | `fieldnotes verify [--update] [--json]` | Recompute SHAs; report drift. `--update` re-pins. |
@@ -174,42 +175,61 @@ fieldnotes add --from draft.md
 
 `id` and `written_at` are always auto-assigned (any values you put in the draft are ignored). SHAs are computed at write time — you don't pin them in the draft.
 
-## Closing the loop with Claude Code hooks
+## Wiring it into Claude Code
 
 Two hooks turn fieldnotes from "tool I have to remember" into "thing that shows up at the right moment."
 
-- **SessionStart** runs `fieldnotes brief`: at the top of every new session, you see the total note count, any stale notes, and which notes reference recently-changed files. The next session starts already knowing what's known.
-- **PostToolUse** (matching `Edit|Write|MultiEdit`) runs `fieldnotes touched`: every time Claude edits a file, if any note references that file, a one-line reminder lands in context. Notes don't go stale silently — Claude is nudged to maintain them at the moment of drift.
+- **SessionStart** runs `fieldnotes brief` — at the top of every new session, the total note count, any stale notes, and which notes reference recently-changed files.
+- **PostToolUse** (matching `Edit|Write|MultiEdit`) runs `fieldnotes touched` — every time Claude edits a file, any note referencing that file surfaces as a one-line reminder.
 
-Both commands are silent when there's nothing to say (no `.fieldnotes/` directory, no matching notes, no JSON on stdin), so wiring them in unconditionally is safe.
+Both commands are silent when there's nothing to say (no `.fieldnotes/`, no matching notes, no JSON on stdin), so they're safe to wire in unconditionally.
 
-The fast path:
+Three steps to go live.
+
+### 1. Install fieldnotes into the Python that Claude Code can see
+
+Hook subshells don't inherit your interactive PATH. Install fieldnotes into the same Python that hosts your other CLI agents — for most macOS users with a system-wide Python framework, that looks like:
+
+```bash
+/Library/Frameworks/Python.framework/Versions/3.14/bin/python3 -m pip install -e ~/Projects/fieldnotes
+```
+
+(Adjust the framework path for your Python version. Once published to PyPI, `pip install fieldnotes` into the same Python will work too.)
+
+### 2. Wire the hooks
 
 ```bash
 fieldnotes install-hooks --apply
 ```
 
-That writes the snippet idempotently to `~/.claude/settings.json` (preserving anything already there). To preview without writing, drop `--apply`. To target a different file, use `--to PATH`.
+This resolves the absolute path of the installed `fieldnotes` binary via `shutil.which`, builds the hook snippet around that path, and writes it idempotently to `~/.claude/settings.json` (preserving everything else). Re-running adds zero entries.
 
-The snippet itself, if you'd rather paste manually:
+To preview without writing, drop `--apply`. To target a different file, use `--to PATH`. To skip the absolute-path resolution and write the bare `fieldnotes` command (for users who already have it globally on PATH), pass `--bare`.
 
-```json
-{
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "*",
-        "hooks": [{"type": "command", "command": "fieldnotes brief 2>/dev/null || true"}]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [{"type": "command", "command": "fieldnotes touched --stdin 2>/dev/null || true"}]
-      }
-    ]
-  }
-}
+### 3. Confirm with `doctor`
+
+```bash
+fieldnotes doctor
+```
+
+Reports installation health: binary on PATH, package importable, hooks present in settings.json (and pointing at the right binary), and whether the current directory has a `.fieldnotes/`. Each check that fails comes with the command to fix it.
+
+### What it looks like when it's live
+
+Open a fresh Claude Code session in any repo with a `.fieldnotes/`:
+
+```
+fieldnotes · 5 note(s) at fieldnotes
+  touching recent changes:
+    fieldnotes/cli.py
+      · 0001 How the fieldnotes CLI is wired  (high)
+      · 0003 How `brief` is meant to be wired  (high)
+```
+
+Edit a file that any note references, and after the Edit returns:
+
+```
+fieldnotes: 2 notes reference fieldnotes/cli.py — 0001 (cli-entry-points), 0003 (brief-and-hooks). May need updating.
 ```
 
 The point is: stop having to remember the tool exists.
@@ -235,7 +255,9 @@ Append-only is deliberate. If a note turns out to be wrong, supersede it (`field
 
 ## Status
 
-**v0.5.0** — symbol pinning. `--refs path:my_function` resolves the symbol via Python's `ast`, pins its current line range, and on `verify` re-resolves it — so a function that moves but keeps its body unchanged stays `ok`. Dotted notation (`Cls.method`) walks into class bodies. Python-only.
+**v0.6.0** — actually live. `install-hooks` resolves the absolute path of the installed `fieldnotes` binary via `shutil.which`, so hook subshells can find it even when they don't inherit your interactive PATH. New `fieldnotes doctor` command reports installation health and tells you what's wrong.
+
+v0.5.0 — symbol pinning. `--refs path:my_function` resolves the symbol via Python's `ast`, pins its current line range, and on `verify` re-resolves it — so a function that moves but keeps its body unchanged stays `ok`. Dotted notation (`Cls.method`) walks into class bodies. Python-only.
 
 v0.4.0 — line-range pinning. A note can pin to just the lines it documents (`--refs path:12-84`).
 
