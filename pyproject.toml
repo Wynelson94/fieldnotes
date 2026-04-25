@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fieldnotes"
+version = "0.1.0"
+description = "Claude-authored, repo-scoped notes about a codebase. SHA-pinned, drift-aware, plaintext markdown."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Nate Nelson", email = "wynelson94@gmail.com" },
+]
+requires-python = ">=3.10"
+keywords = ["claude", "claude-code", "codebase", "notes", "memory", "ai"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Libraries",
+]
+
+dependencies = [
+    "typer>=0.12.0,<1.0",
+    "rich>=13.7.0,<15.0",
+    "pydantic>=2.6.0,<3.0",
+    "python-frontmatter>=1.1.0,<2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.5.0",
+]
+
+[project.scripts]
+fieldnotes = "fieldnotes.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/Wynelson94/fieldnotes"
+Repository = "https://github.com/Wynelson94/fieldnotes"
+Issues = "https://github.com/Wynelson94/fieldnotes/issues"
+
+[tool.setuptools.packages.find]
+include = ["fieldnotes*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E501",
+    "SIM102",
+    "SIM105",
+    "SIM108",
+]
