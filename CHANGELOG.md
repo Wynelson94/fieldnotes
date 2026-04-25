@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 — 2026-04-24
+
+Closes the feedback loop: notes get nudged at the moment of drift, not just at the next `verify`.
+
+- `fieldnotes touched <path>`: quietly surface notes referencing an edited file. Reads stdin JSON for PostToolUse hook payloads via `--stdin`. Silent on no match — safe to wire unconditionally.
+- `fieldnotes install-hooks`: prints the Claude Code hook snippet by default; `--apply` writes it idempotently to `~/.claude/settings.json` (preserving anything already there). `--to PATH` for non-default targets.
+- README: rewrote the hooks section as "closing the loop" — SessionStart loads notes, PostToolUse maintains them.
+- 116 tests, ruff clean.
+
 ## 0.2.0 — 2026-04-24
 
 Closes the loop: fieldnotes can now show up automatically at session start.

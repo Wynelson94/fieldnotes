@@ -96,6 +96,8 @@ The body is plain markdown. The frontmatter and SHA pins do the heavy lifting; t
 | `fieldnotes add ...` | Create a note via flags, or `--from draft.md` to read a markdown+frontmatter file. |
 | `fieldnotes for <path>` | List every note that references a given source file. |
 | `fieldnotes brief` | Compact session-start summary. Silent when no `.fieldnotes/` exists — safe to wire as a hook. |
+| `fieldnotes touched <path>` | Quietly surface notes that reference an edited file. Silent on no match. Designed for PostToolUse hooks. |
+| `fieldnotes install-hooks [--apply]` | Print (or apply) the Claude Code hook snippet. Idempotent. |
 | `fieldnotes list [--tag T] [--confidence C] [--stale] [--json]` | List notes. |
 | `fieldnotes get <id-or-topic>` | Print a single note. |
 | `fieldnotes verify [--update] [--json]` | Recompute SHAs; report drift. `--update` re-pins. |
@@ -133,9 +135,24 @@ fieldnotes add --from draft.md
 
 `id` and `written_at` are always auto-assigned (any values you put in the draft are ignored). SHAs are computed at write time — you don't pin them in the draft.
 
-## Wiring as a Claude Code SessionStart hook
+## Closing the loop with Claude Code hooks
 
-`fieldnotes brief` exits silently when no `.fieldnotes/` directory is found, which makes it safe to wire as a global hook. Add to `~/.claude/settings.json`:
+Two hooks turn fieldnotes from "tool I have to remember" into "thing that shows up at the right moment."
+
+- **SessionStart** runs `fieldnotes brief`: at the top of every new session, you see the total note count, any stale notes, and which notes reference recently-changed files. The next session starts already knowing what's known.
+- **PostToolUse** (matching `Edit|Write|MultiEdit`) runs `fieldnotes touched`: every time Claude edits a file, if any note references that file, a one-line reminder lands in context. Notes don't go stale silently — Claude is nudged to maintain them at the moment of drift.
+
+Both commands are silent when there's nothing to say (no `.fieldnotes/` directory, no matching notes, no JSON on stdin), so wiring them in unconditionally is safe.
+
+The fast path:
+
+```bash
+fieldnotes install-hooks --apply
+```
+
+That writes the snippet idempotently to `~/.claude/settings.json` (preserving anything already there). To preview without writing, drop `--apply`. To target a different file, use `--to PATH`.
+
+The snippet itself, if you'd rather paste manually:
 
 ```json
 {
@@ -143,19 +160,18 @@ fieldnotes add --from draft.md
     "SessionStart": [
       {
         "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "fieldnotes brief 2>/dev/null || true"
-          }
-        ]
+        "hooks": [{"type": "command", "command": "fieldnotes brief 2>/dev/null || true"}]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{"type": "command", "command": "fieldnotes touched --stdin 2>/dev/null || true"}]
       }
     ]
   }
 }
 ```
-
-When you start a session in a repo that has fieldnotes, you'll see a compact summary at the top: total note count, any stale notes, and notes touching recently-changed files (uncommitted + last 5 commits via git). When you start a session in a repo that doesn't, nothing happens.
 
 The point is: stop having to remember the tool exists.
 
@@ -180,9 +196,11 @@ Append-only is deliberate. If a note turns out to be wrong, supersede it (`field
 
 ## Status
 
-**v0.2.0** — adds `for`, `brief`, and `add --from`. The format from v0.1 is unchanged. Multi-repo aggregation and semantic search are still parking-lotted.
+**v0.3.0** — closes the feedback loop. Adds `touched` (PostToolUse-shaped) and `install-hooks`. Notes now get nudged at the moment of drift, not just at the next `verify`.
 
-v0.1.0 — initial release.
+v0.2.0 — adds `for`, `brief`, and `add --from`. Makes the tool ambient via SessionStart hooks.
+
+v0.1.0 — initial release. Established the format: markdown + YAML frontmatter + SHA pins.
 
 ## Author
 

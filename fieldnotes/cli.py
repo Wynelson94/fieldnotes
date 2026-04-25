@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,6 +29,7 @@ from fieldnotes.store import (
     notes_referencing,
     parse_note_file,
     read_note,
+    to_repo_relative,
     write_note,
 )
 from fieldnotes.verify import check_note, compute_sha, update_shas
@@ -535,5 +537,153 @@ def brief(
                 console.print(
                     f"      · {n.id} {n.title}  [dim]({n.confidence.value})[/dim]"
                 )
+
+
+@app.command()
+def touched(
+    path: Annotated[
+        str | None,
+        typer.Argument(
+            help="File path. Omit to read the PostToolUse JSON payload from stdin."
+        ),
+    ] = None,
+    stdin_payload: Annotated[
+        bool,
+        typer.Option(
+            "--stdin",
+            help="Read JSON payload from stdin and extract tool_input.file_path.",
+        ),
+    ] = False,
+    repo: RepoOpt = None,
+) -> None:
+    """Quietly surface notes that reference an edited file.
+
+    Designed for Claude Code PostToolUse hooks: silent when there are no
+    matching notes, single line when there are. Never raises — a failed
+    hook invocation should not break a session.
+    """
+    target: str | None = path
+    if target is None or stdin_payload:
+        try:
+            payload = json.load(sys.stdin)
+        except (json.JSONDecodeError, ValueError):
+            return
+        ti = payload.get("tool_input") or {}
+        target = ti.get("file_path") or ti.get("path") or target
+    if not target:
+        return
+
+    try:
+        repo_root = find_repo_root(
+            Path(repo) if repo is not None else Path.cwd()
+        )
+    except RepoNotInitializedError:
+        return
+    hits = notes_referencing(repo_root, target)
+    if not hits:
+        return
+    rel = to_repo_relative(repo_root, target)
+    titles = ", ".join(f"{n.id} ({n.topic})" for n, _ in hits[:5])
+    n_word = "note" if len(hits) == 1 else "notes"
+    console.print(
+        f"fieldnotes: {len(hits)} {n_word} reference {rel} — {titles}. May need updating."
+    )
+
+
+_HOOK_SNIPPET = {
+    "hooks": {
+        "SessionStart": [
+            {
+                "matcher": "*",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "fieldnotes brief 2>/dev/null || true",
+                    }
+                ],
+            }
+        ],
+        "PostToolUse": [
+            {
+                "matcher": "Edit|Write|MultiEdit",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "fieldnotes touched --stdin 2>/dev/null || true",
+                    }
+                ],
+            }
+        ],
+    }
+}
+
+
+def _hook_entry_eq(a: dict, b: dict) -> bool:
+    if a.get("matcher") != b.get("matcher"):
+        return False
+    a_cmds = {h.get("command") for h in a.get("hooks", []) if h.get("type") == "command"}
+    b_cmds = {h.get("command") for h in b.get("hooks", []) if h.get("type") == "command"}
+    return a_cmds == b_cmds
+
+
+def _merge_hooks(existing: dict, new_hooks: dict) -> tuple[dict, int]:
+    """Merge `new_hooks` into `existing["hooks"]`. Returns (merged, added_count)."""
+    out = json.loads(json.dumps(existing))  # cheap deep copy
+    out.setdefault("hooks", {})
+    added = 0
+    for event, entries in new_hooks.items():
+        out["hooks"].setdefault(event, [])
+        for entry in entries:
+            if not any(_hook_entry_eq(e, entry) for e in out["hooks"][event]):
+                out["hooks"][event].append(entry)
+                added += 1
+    return out, added
+
+
+@app.command(name="install-hooks")
+def install_hooks(
+    apply: Annotated[
+        bool,
+        typer.Option(
+            "--apply",
+            help="Write the hooks to settings.json. Default: print the snippet only.",
+        ),
+    ] = False,
+    to: Annotated[
+        Path | None,
+        typer.Option("--to", help="Target settings.json. Default: ~/.claude/settings.json"),
+    ] = None,
+) -> None:
+    """Print (or apply) Claude Code hooks: SessionStart `brief` + PostToolUse `touched`.
+
+    Idempotent: re-running with --apply will not duplicate existing entries.
+    """
+    target = to or Path.home() / ".claude" / "settings.json"
+    if not apply:
+        console.print(
+            "[bold]fieldnotes hooks[/bold]  "
+            "(rerun with --apply to write to your settings.json)"
+        )
+        console.print()
+        console.print_json(data=_HOOK_SNIPPET)
+        console.print()
+        console.print(f"[dim]Default target: {target}[/dim]")
+        return
+    existing: dict = {}
+    if target.exists():
+        raw = target.read_text().strip()
+        if raw:
+            try:
+                existing = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                err_console.print(f"[red]could not parse {target}: {exc}[/red]")
+                raise typer.Exit(code=1) from exc
+    merged, added = _merge_hooks(existing, _HOOK_SNIPPET["hooks"])
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(merged, indent=2) + "\n")
+    if added == 0:
+        console.print(f"[dim]hooks already present in {target} — nothing changed[/dim]")
+    else:
+        console.print(f"[green]added[/green] {added} hook entr(ies) to {target}")
 
 
