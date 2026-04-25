@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 — 2026-04-24
+
+Symbol pinning. `--refs path:symbol_name` is now the most resilient way to anchor a note to a function or method.
+
+- `Reference.symbol`: optional new field. When set, `verify` re-resolves the symbol on each check via Python's `ast`, hashes its current body, and compares to the pinned sha. Functions that *move* but keep their body unchanged now stay `ok` — staleness reflects semantic change, not line-number drift.
+- `--refs path/to/file.py:my_func`: top-level functions and classes. `path:Cls.method`: dotted notation walks into class bodies.
+- `update_shas` re-pins both the sha *and* the lines for symbol-pinned refs, so the stored `lines` field tracks the symbol's current location.
+- New module `fieldnotes/symbols.py` with `resolve_symbol(path, name)`. v0.5 is Python-only; non-Python files fall through to v0.4 line-range or v0.1 whole-file behavior.
+- 165 tests, ruff clean.
+
 ## 0.4.0 — 2026-04-24
 
 Line-range pinning. A note can pin to just the lines it documents, so unrelated edits elsewhere in the file don't falsely flag it stale.

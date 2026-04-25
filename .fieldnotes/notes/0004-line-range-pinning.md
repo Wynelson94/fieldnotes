@@ -6,12 +6,14 @@ references:
   - 213
   - 237
   path: fieldnotes/cli.py
-  sha: 700fff8626be4498a3363d8d906cf7604c1a68a848c06546579621aae93ed848
+  sha: dafea289f95fef0b0c732f0073ffc4a33bce9581e144688b0a1e7805691008b1
+  symbol: null
 - lines:
   - 50
   - 67
   path: fieldnotes/verify.py
-  sha: b1c08ee54af1f763725e0f8ebff766cc713ef0c0f421f373b6cb46d959609c81
+  sha: 4ba12faa5073abcafabe209d8e94fc5aa91905f6ea17d3f1a777b68e7b13861b
+  symbol: null
 session_id: null
 superseded_by: null
 supersedes: null

@@ -51,6 +51,24 @@ class TestReference:
         r = Reference(path="x", lines=[42, 42])
         assert r.lines == [42, 42]
 
+    def test_symbol_simple(self):
+        r = Reference(path="x", symbol="my_func")
+        assert r.symbol == "my_func"
+
+    def test_symbol_dotted(self):
+        r = Reference(path="x", symbol="MyClass.method")
+        assert r.symbol == "MyClass.method"
+
+    def test_symbol_invalid_chars(self):
+        with pytest.raises(ValueError):
+            Reference(path="x", symbol="my func")
+        with pytest.raises(ValueError):
+            Reference(path="x", symbol="9starts_digit")
+
+    def test_symbol_empty_becomes_none(self):
+        r = Reference(path="x", symbol="   ")
+        assert r.symbol is None
+
 
 class TestNote:
     def _kw(self, **over):

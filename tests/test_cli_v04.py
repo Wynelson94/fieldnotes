@@ -14,17 +14,31 @@ runner = CliRunner()
 
 class TestParseRefSpec:
     def test_no_lines(self):
-        assert _parse_ref_spec("src/foo.py") == ("src/foo.py", None)
+        assert _parse_ref_spec("src/foo.py") == ("src/foo.py", None, None)
 
     def test_single_line(self):
-        assert _parse_ref_spec("src/foo.py:42") == ("src/foo.py", [42, 42])
+        assert _parse_ref_spec("src/foo.py:42") == ("src/foo.py", [42, 42], None)
 
     def test_range(self):
-        assert _parse_ref_spec("src/foo.py:12-84") == ("src/foo.py", [12, 84])
+        assert _parse_ref_spec("src/foo.py:12-84") == ("src/foo.py", [12, 84], None)
 
-    def test_invalid_range_falls_back_to_path(self):
-        # If trailing part isn't a valid int/range, treat the whole thing as a path.
-        assert _parse_ref_spec("src/foo.py:notanumber") == ("src/foo.py:notanumber", None)
+    def test_symbol(self):
+        assert _parse_ref_spec("src/foo.py:my_func") == ("src/foo.py", None, "my_func")
+
+    def test_dotted_symbol(self):
+        assert _parse_ref_spec("src/foo.py:Cls.method") == (
+            "src/foo.py",
+            None,
+            "Cls.method",
+        )
+
+    def test_garbage_suffix_falls_back_to_path(self):
+        # Anything that isn't a valid range, line, or symbol → treat whole spec as path.
+        assert _parse_ref_spec("src/foo.py:not a symbol!") == (
+            "src/foo.py:not a symbol!",
+            None,
+            None,
+        )
 
 
 class TestAddWithRangeRefs:

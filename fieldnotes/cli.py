@@ -16,7 +16,7 @@ from rich.table import Table
 from fieldnotes import __version__
 from fieldnotes.brief import build_brief
 from fieldnotes.index import rebuild_index
-from fieldnotes.models import Confidence, Note, Reference
+from fieldnotes.models import SYMBOL_RE, Confidence, Note, Reference
 from fieldnotes.search import search as do_search
 from fieldnotes.store import (
     AmbiguousNoteSelectorError,
@@ -32,6 +32,7 @@ from fieldnotes.store import (
     to_repo_relative,
     write_note,
 )
+from fieldnotes.symbols import resolve_symbol
 from fieldnotes.verify import check_note, compute_range_sha, update_shas
 
 app = typer.Typer(
@@ -191,12 +192,25 @@ def _note_from_draft(
         target = Path(ref.path)
         if not target.is_absolute():
             target = repo_root / target
-        sha = compute_range_sha(target, ref.lines)
+        # If the draft set a symbol but no lines, resolve now.
+        effective_lines = ref.lines
+        if ref.symbol is not None and effective_lines is None:
+            resolved = resolve_symbol(target, ref.symbol)
+            if resolved is not None:
+                effective_lines = list(resolved)
+            else:
+                err_console.print(
+                    f"[yellow]warning[/yellow]: could not resolve symbol "
+                    f"{ref.symbol!r} in {ref.path}"
+                )
+        sha = compute_range_sha(target, effective_lines)
         if sha is None:
             err_console.print(
                 f"[yellow]warning[/yellow]: ref path not found: {ref.path} (sha left null)"
             )
-        pinned_refs.append(Reference(path=ref.path, sha=sha, lines=ref.lines))
+        pinned_refs.append(
+            Reference(path=ref.path, sha=sha, lines=effective_lines, symbol=ref.symbol)
+        )
     meta["references"] = [r.model_dump() for r in pinned_refs]
     note = Note(**meta)
     return note, post.content
@@ -210,30 +224,38 @@ def _read_body(arg: str) -> str:
     return arg
 
 
-def _parse_ref_spec(spec: str) -> tuple[str, list[int] | None]:
-    """Parse a ref spec into (path, lines_or_None).
+def _parse_ref_spec(spec: str) -> tuple[str, list[int] | None, str | None]:
+    """Parse a ref spec into (path, lines_or_None, symbol_or_None).
 
     Forms:
-      `path/to/file.py`         -> whole file
-      `path/to/file.py:42`      -> single line, [42, 42]
-      `path/to/file.py:12-84`   -> range [12, 84]
+      `path/to/file.py`              -> whole file
+      `path/to/file.py:42`           -> single line, [42, 42]
+      `path/to/file.py:12-84`        -> range [12, 84]
+      `path/to/file.py:my_func`      -> symbol (resolved at write time, Python only)
+      `path/to/file.py:Cls.method`   -> dotted symbol (method on a class)
     """
     if ":" not in spec:
-        return spec, None
-    path, _, range_part = spec.rpartition(":")
-    if not range_part or not path:
-        return spec, None
-    if "-" in range_part:
-        a, b = range_part.split("-", 1)
+        return spec, None, None
+    path, _, suffix = spec.rpartition(":")
+    if not suffix or not path:
+        return spec, None, None
+    # Range form: 12-84
+    if "-" in suffix:
+        a, b = suffix.split("-", 1)
         try:
-            return path, [int(a), int(b)]
+            return path, [int(a), int(b)], None
         except ValueError:
-            return spec, None
+            return spec, None, None
+    # Single-line form: 42
     try:
-        n = int(range_part)
+        n = int(suffix)
+        return path, [n, n], None
     except ValueError:
-        return spec, None
-    return path, [n, n]
+        pass
+    # Symbol form: my_func or MyClass.method
+    if SYMBOL_RE.fullmatch(suffix):
+        return path, None, suffix
+    return spec, None, None
 
 
 def _build_refs(repo_root: Path, refs: str | None) -> list[Reference]:
@@ -244,16 +266,25 @@ def _build_refs(repo_root: Path, refs: str | None) -> list[Reference]:
         raw = raw.strip()
         if not raw:
             continue
-        ref_path, lines = _parse_ref_spec(raw)
+        ref_path, lines, symbol = _parse_ref_spec(raw)
         target = Path(ref_path)
         if not target.is_absolute():
             target = repo_root / target
+        if symbol is not None and lines is None:
+            resolved = resolve_symbol(target, symbol)
+            if resolved is None:
+                err_console.print(
+                    f"[yellow]warning[/yellow]: could not resolve symbol "
+                    f"{symbol!r} in {ref_path} (pinning whole file)"
+                )
+            else:
+                lines = list(resolved)
         sha = compute_range_sha(target, lines)
         if sha is None:
             err_console.print(
                 f"[yellow]warning[/yellow]: ref path not found: {ref_path} (sha left null)"
             )
-        out.append(Reference(path=ref_path, sha=sha, lines=lines))
+        out.append(Reference(path=ref_path, sha=sha, lines=lines, symbol=symbol))
     return out
 
 

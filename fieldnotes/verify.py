@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from fieldnotes.models import Note, Reference
+from fieldnotes.symbols import resolve_symbol
 
 
 @dataclass(frozen=True)
@@ -16,6 +17,9 @@ class ReferenceStatus:
     reference: Reference
     state: str  # "ok" | "stale" | "missing" | "unpinned"
     actual_sha: str | None  # sha at check time, None if file missing or unpinned
+    actual_lines: list[int] | None = field(default=None)
+    # ^ for symbol-pinned refs: lines where the symbol resolves *now*. May
+    #   differ from ref.lines if the symbol moved within the file.
 
     @property
     def is_problem(self) -> bool:
@@ -78,14 +82,36 @@ def _resolve_ref_path(repo_root: Path, ref: Reference) -> Path:
 
 
 def check_reference(repo_root: Path, ref: Reference) -> ReferenceStatus:
-    actual = compute_range_sha(_resolve_ref_path(repo_root, ref), ref.lines)
+    target = _resolve_ref_path(repo_root, ref)
+    if not target.exists():
+        return ReferenceStatus(reference=ref, state="missing", actual_sha=None)
+
+    effective_lines = ref.lines
+    actual_lines: list[int] | None = None
+    if ref.symbol is not None:
+        resolved = resolve_symbol(target, ref.symbol)
+        if resolved is None:
+            # Symbol gone (renamed, deleted, or unparseable) — count as stale.
+            return ReferenceStatus(
+                reference=ref, state="stale", actual_sha=None, actual_lines=None
+            )
+        effective_lines = list(resolved)
+        actual_lines = effective_lines
+
+    actual = compute_range_sha(target, effective_lines)
     if actual is None:
         return ReferenceStatus(reference=ref, state="missing", actual_sha=None)
     if ref.sha is None:
-        return ReferenceStatus(reference=ref, state="unpinned", actual_sha=actual)
+        return ReferenceStatus(
+            reference=ref, state="unpinned", actual_sha=actual, actual_lines=actual_lines
+        )
     if ref.sha == actual:
-        return ReferenceStatus(reference=ref, state="ok", actual_sha=actual)
-    return ReferenceStatus(reference=ref, state="stale", actual_sha=actual)
+        return ReferenceStatus(
+            reference=ref, state="ok", actual_sha=actual, actual_lines=actual_lines
+        )
+    return ReferenceStatus(
+        reference=ref, state="stale", actual_sha=actual, actual_lines=actual_lines
+    )
 
 
 def check_note(repo_root: Path, note: Note, path: Path) -> NoteStatus:
@@ -108,7 +134,15 @@ def update_shas(note: Note, statuses: list[ReferenceStatus]) -> Note:
         if st.actual_sha is None:
             new_refs.append(ref)
             continue
+        # For symbol-pinned refs, prefer the re-resolved lines so the stored
+        # range tracks the symbol's current location.
+        new_lines = st.actual_lines if st.actual_lines is not None else ref.lines
         new_refs.append(
-            Reference(path=ref.path, sha=st.actual_sha, lines=ref.lines)
+            Reference(
+                path=ref.path,
+                sha=st.actual_sha,
+                lines=new_lines,
+                symbol=ref.symbol,
+            )
         )
     return note.model_copy(update={"references": new_refs})

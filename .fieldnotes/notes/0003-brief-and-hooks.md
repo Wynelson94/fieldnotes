@@ -5,9 +5,11 @@ references:
 - lines: null
   path: fieldnotes/brief.py
   sha: 5f62b9820cec3521eedb9cecc5345238b3098e60c19f881f5955b22c8bdcc7ea
+  symbol: null
 - lines: null
   path: fieldnotes/cli.py
-  sha: 4ce4835b64e389be568c77c5a63f3b3959318fc4dd2932cc03d9e676aab62ffd
+  sha: 1bf46902ad10e611e3bfa14020268701017ff883ebcd5ad0f7886178492823d0
+  symbol: null
 session_id: null
 superseded_by: null
 supersedes: null

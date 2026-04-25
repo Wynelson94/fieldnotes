@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ID_RE = re.compile(r"^\d{4,}$")
+SYMBOL_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
 
 class Confidence(str, Enum):
@@ -24,6 +25,7 @@ class Reference(BaseModel):
     path: str
     sha: str | None = None
     lines: list[int] | None = None
+    symbol: str | None = None
 
     @field_validator("path")
     @classmethod
@@ -41,6 +43,21 @@ class Reference(BaseModel):
         v = v.strip().lower()
         if not re.fullmatch(r"[0-9a-f]{64}", v):
             raise ValueError("sha must be a 64-char hex sha256")
+        return v
+
+    @field_validator("symbol")
+    @classmethod
+    def _symbol_valid(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            return None
+        if not SYMBOL_RE.fullmatch(v):
+            raise ValueError(
+                "symbol must be a Python identifier or dotted path "
+                "(e.g. 'my_func' or 'MyClass.method')"
+            )
         return v
 
     @field_validator("lines")

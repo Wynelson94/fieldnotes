@@ -108,33 +108,43 @@ The body is plain markdown. The frontmatter and SHA pins do the heavy lifting; t
 
 All commands accept `--repo PATH`. Default: walk up from cwd until a `.fieldnotes/` is found.
 
-## Pinning to a line range, not the whole file
+## Pinning to a symbol, a line range, or a whole file
 
-By default, `--refs path/to/file.py` pins the SHA of the entire file. If the note describes a single function or block, that's too coarse — an unrelated edit elsewhere in the file would falsely flag the note as stale.
-
-Two extra forms let you be precise:
+By default, `--refs path/to/file.py` pins the SHA of the entire file. For a note that describes a single function or method, that's too coarse — an unrelated edit elsewhere in the file would falsely flag the note as stale. Three extra forms let you be precise:
 
 ```bash
+# Pin to a Python symbol — function, class, or method:
+fieldnotes add ... --refs fieldnotes/cli.py:_parse_ref_spec
+fieldnotes add ... --refs fieldnotes/symbols.py:resolve_symbol
+fieldnotes add ... --refs fieldnotes/cli.py:MyClass.my_method
+
 # Pin to lines 12 through 84 (1-indexed, inclusive):
-fieldnotes add --topic ... --title ... --body ... \
-  --refs fieldnotes/cli.py:12-84
+fieldnotes add ... --refs fieldnotes/cli.py:12-84
 
 # Pin to a single line:
 fieldnotes add ... --refs fieldnotes/cli.py:42
 
 # Mix freely:
-fieldnotes add ... --refs fieldnotes/cli.py:213-237,pyproject.toml
+fieldnotes add ... --refs fieldnotes/cli.py:_parse_ref_spec,pyproject.toml
 ```
 
-When a range is pinned, `verify` hashes only that slice. Edits anywhere else in the file leave the note's SHA intact. Edits inside the range surface as stale, exactly as they should.
+**Symbol pinning** (the v0.5 form) is the most resilient. The CLI uses Python's `ast` module to find the symbol at write time and stores both its name and its current line range. On every `verify`, the symbol is *re-resolved* — so a function that moves within a file (because someone added imports above, or reordered defs) but keeps its body unchanged stays `ok`. Only edits to the symbol's actual body surface as stale.
 
-In a `--from` draft, the same precision is available via the `lines` field:
+**Line-range pinning** works for anything: source code without symbols, config files, markdown sections, snippet excerpts. Edits outside the range don't invalidate; edits inside do.
+
+**Whole-file pinning** is the right default when the note describes structural facts about the file as a whole.
+
+Symbol pinning is Python-only in v0.5. For non-Python files, fall through to line-range or whole-file. (Tree-sitter for multi-language symbol support is parking-lotted.)
+
+In a `--from` draft, set the equivalent fields directly:
 
 ```yaml
 references:
   - path: fieldnotes/cli.py
-    lines: [213, 237]
-  - path: pyproject.toml
+    symbol: _parse_ref_spec    # resolved at write time
+  - path: fieldnotes/cli.py
+    lines: [213, 237]          # explicit range
+  - path: pyproject.toml       # whole file
 ```
 
 ## Authoring with `--from`
@@ -225,7 +235,9 @@ Append-only is deliberate. If a note turns out to be wrong, supersede it (`field
 
 ## Status
 
-**v0.4.0** — line-range pinning. A note can pin to just the lines it documents (`--refs path:12-84`), so unrelated edits elsewhere in the file don't falsely flag it stale. Tighter `lines` validation: must be `[start, end]`, 1-indexed, inclusive.
+**v0.5.0** — symbol pinning. `--refs path:my_function` resolves the symbol via Python's `ast`, pins its current line range, and on `verify` re-resolves it — so a function that moves but keeps its body unchanged stays `ok`. Dotted notation (`Cls.method`) walks into class bodies. Python-only.
+
+v0.4.0 — line-range pinning. A note can pin to just the lines it documents (`--refs path:12-84`).
 
 v0.3.0 — closes the feedback loop with `touched` (PostToolUse-shaped) and `install-hooks`. Notes get nudged at the moment of drift.
 
