@@ -119,10 +119,64 @@ def check_note(repo_root: Path, note: Note, path: Path) -> NoteStatus:
     return NoteStatus(note=note, path=path, references=statuses)
 
 
-def update_shas(note: Note, statuses: list[ReferenceStatus]) -> Note:
+def find_moved_range(
+    path: Path, target_sha: str, range_size: int
+) -> list[tuple[int, int]]:
+    """Find every 1-indexed [start, end] line range in `path` whose contents
+    hash to `target_sha`. Used by --rebase to locate where a previously-pinned
+    block of code ended up after a refactor moved it within the same file.
+
+    Returns an empty list if the file is missing, the range size is invalid,
+    or no window matches. Multiple matches are possible (rare; identical
+    adjacent blocks); callers decide how to disambiguate.
+    """
+    if not path.exists() or not path.is_file():
+        return []
+    if range_size <= 0:
+        return []
+    raw = path.read_bytes()
+    file_lines = raw.splitlines(keepends=True)
+    n = len(file_lines)
+    if range_size > n:
+        return []
+    matches: list[tuple[int, int]] = []
+    for start_idx in range(n - range_size + 1):
+        h = hashlib.sha256()
+        for line in file_lines[start_idx : start_idx + range_size]:
+            h.update(line)
+        if h.hexdigest() == target_sha:
+            matches.append((start_idx + 1, start_idx + range_size))
+    return matches
+
+
+@dataclass(frozen=True)
+class RebaseResult:
+    """Outcome of attempting to rebase one stale line-range pin to follow
+    code that moved within the file. Surfaced by the CLI so users can see
+    what the tool did on their behalf."""
+
+    ref_path: str
+    original_lines: list[int] | None
+    new_lines: list[int] | None
+    outcome: str  # "rebased" | "ambiguous" | "no_match"
+
+
+def update_shas(
+    note: Note,
+    statuses: list[ReferenceStatus],
+    repo_root: Path | None = None,
+    rebase: bool = False,
+    rebase_results: list[RebaseResult] | None = None,
+) -> Note:
     """Return a copy of `note` with reference SHAs re-pinned to actual values.
 
     Missing files are left alone. Statuses must align positionally with note.references.
+
+    When `rebase=True` and `repo_root` is provided, stale line-range pins (refs
+    with `lines` set and no `symbol`) try to re-locate their original content
+    elsewhere in the file by SHA. If found, both `lines` and `sha` are updated
+    so the pin tracks the moved block; the SHA stays the same since the content
+    is identical. If `rebase_results` is supplied, per-ref outcomes are appended.
     """
     if len(statuses) != len(note.references):
         raise ValueError("statuses must align with note.references")
@@ -134,6 +188,57 @@ def update_shas(note: Note, statuses: list[ReferenceStatus]) -> Note:
         if st.actual_sha is None:
             new_refs.append(ref)
             continue
+
+        if (
+            rebase
+            and st.state == "stale"
+            and ref.symbol is None
+            and ref.lines is not None
+            and ref.sha is not None
+            and repo_root is not None
+        ):
+            target = _resolve_ref_path(repo_root, ref)
+            range_size = ref.lines[1] - ref.lines[0] + 1
+            matches = find_moved_range(target, ref.sha, range_size)
+            if matches:
+                if len(matches) == 1:
+                    new_start, new_end = matches[0]
+                    outcome = "rebased"
+                else:
+                    new_start, new_end = min(
+                        matches, key=lambda m: abs(m[0] - ref.lines[0])
+                    )
+                    outcome = "ambiguous"
+                if rebase_results is not None:
+                    rebase_results.append(
+                        RebaseResult(
+                            ref_path=ref.path,
+                            original_lines=list(ref.lines),
+                            new_lines=[new_start, new_end],
+                            outcome=outcome,
+                        )
+                    )
+                new_refs.append(
+                    Reference(
+                        path=ref.path,
+                        sha=ref.sha,
+                        lines=[new_start, new_end],
+                        symbol=None,
+                    )
+                )
+                continue
+            if rebase_results is not None:
+                rebase_results.append(
+                    RebaseResult(
+                        ref_path=ref.path,
+                        original_lines=list(ref.lines),
+                        new_lines=None,
+                        outcome="no_match",
+                    )
+                )
+            # Fall through to in-place re-pin: locks SHA to whatever is at
+            # the original line range now, even if it's unrelated content.
+
         # For symbol-pinned refs, prefer the re-resolved lines so the stored
         # range tracks the symbol's current location.
         new_lines = st.actual_lines if st.actual_lines is not None else ref.lines

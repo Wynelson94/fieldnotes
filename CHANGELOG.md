@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0 — 2026-04-25
+
+Line-range pins now self-heal when code moves. The drift-recovery story for line-range pins (from v0.4) was: "you have to re-pin manually." That was a real friction point — when a refactor pushes a documented block down by N lines, plain `--update` would lock the original line range to a SHA of unrelated content. v0.7 fixes that.
+
+- `verify --update --rebase`: stale line-range pins try to re-locate their original content elsewhere in the file by SHA. Match found → both `lines` and `sha` update (SHA stays identical, just lines shift). No match → falls back to in-place re-pin with a `warning:` line so you know content truly drifted.
+- New `fieldnotes/verify.py:find_moved_range(path, target_sha, range_size)` — slides a windowed SHA over the file. Pure function, used by both the CLI and tests.
+- New `RebaseResult` dataclass surfaces per-ref outcomes (`rebased` | `ambiguous` | `no_match`) so the CLI can report what happened.
+- Symbol-pinned and whole-file pins are unaffected — they already self-heal or don't apply.
+- PyPI distribution name is `claude-fieldnotes` (the unprefixed `fieldnotes` is taken). CLI binary and import path are unchanged.
+- 192 tests, ruff clean.
+
 ## 0.6.0 — 2026-04-24
 
 Make it actually live. The hook snippet was technically correct but practically broken: Claude Code hook subshells don't inherit your interactive PATH, so `fieldnotes brief` would silently fail unless you'd installed fieldnotes globally.

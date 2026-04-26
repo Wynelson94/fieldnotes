@@ -4,11 +4,11 @@ id: '0001'
 references:
 - lines: null
   path: fieldnotes/cli.py
-  sha: 27878bc2e7c69e11331a4452862fd129224e565ece65a8d2179442ecfcb14973
+  sha: 0e7c55aa043a733ba80fb04fce02b5c3c2ba2b800a430313ea1ea27d42946c8c
   symbol: null
 - lines: null
   path: pyproject.toml
-  sha: f1af71e699a6748401af33e1f1e3620c7f61ae6b73244e49facd1a518664a900
+  sha: eefa8217670313dae6f74655bfbca55dd4027eec699824e23bcc18025fbd805e
   symbol: null
 session_id: null
 superseded_by: null

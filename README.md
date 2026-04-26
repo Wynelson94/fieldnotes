@@ -19,10 +19,10 @@ The format is the contract. Anything else — Claude Code hooks, semantic search
 ## Install
 
 ```bash
-pip install fieldnotes
+pip install claude-fieldnotes
 ```
 
-Requires Python 3.10+. (Not yet on PyPI as of the initial release — clone and `pip install -e .` for now.)
+Requires Python 3.10+. The distribution is `claude-fieldnotes` (the unprefixed name was taken by an unrelated project on PyPI), but the CLI binary and import path are both `fieldnotes`.
 
 ## Quickstart
 
@@ -194,7 +194,7 @@ Hook subshells don't inherit your interactive PATH. Install fieldnotes into the 
 /Library/Frameworks/Python.framework/Versions/3.14/bin/python3 -m pip install -e ~/Projects/fieldnotes
 ```
 
-(Adjust the framework path for your Python version. Once published to PyPI, `pip install fieldnotes` into the same Python will work too.)
+(Adjust the framework path for your Python version. `pip install claude-fieldnotes` into that same Python works too.)
 
 ### 2. Wire the hooks
 

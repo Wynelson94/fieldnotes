@@ -15,7 +15,7 @@ references:
   sha: 05e5204641225a00be6f1f9daa7d3533c3741bc24a7a9939da2ea70e434eb352
   symbol: null
 session_id: null
-superseded_by: null
+superseded_by: '0007'
 supersedes: '0004'
 tags:
 - lines

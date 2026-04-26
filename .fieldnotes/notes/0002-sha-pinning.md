@@ -4,7 +4,7 @@ id: '0002'
 references:
 - lines: null
   path: fieldnotes/verify.py
-  sha: e840761f68642a1c137aabae3bf3ac576bd8a6b074238dba6424fb27734c431a
+  sha: 3a06ad55e2bccb9e487d4ce0013de47cf63b3c95314523a13f224beb2f3e9071
   symbol: null
 - lines: null
   path: fieldnotes/models.py

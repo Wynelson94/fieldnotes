@@ -35,7 +35,7 @@ from fieldnotes.store import (
     write_note,
 )
 from fieldnotes.symbols import resolve_symbol
-from fieldnotes.verify import check_note, compute_range_sha, update_shas
+from fieldnotes.verify import RebaseResult, check_note, compute_range_sha, update_shas
 
 app = typer.Typer(
     add_completion=False,
@@ -365,6 +365,13 @@ def verify(
         bool,
         typer.Option("--update", help="Re-pin SHAs to current values for stale references."),
     ] = False,
+    rebase: Annotated[
+        bool,
+        typer.Option(
+            "--rebase",
+            help="With --update, try to relocate stale line-range pins by SHA before re-pinning. Lets pins follow code that moved within a file.",
+        ),
+    ] = False,
     json_out: Annotated[bool, typer.Option("--json", help="Emit JSON.")] = False,
     repo: RepoOpt = None,
 ) -> None:
@@ -374,9 +381,16 @@ def verify(
     statuses = [check_note(repo_root, n, p) for (n, p) in rows]
     stale = [s for s in statuses if s.is_stale]
 
+    rebase_results: list[RebaseResult] = []
     if update and stale:
         for s in stale:
-            new_note = update_shas(s.note, s.references)
+            new_note = update_shas(
+                s.note,
+                s.references,
+                repo_root=repo_root if rebase else None,
+                rebase=rebase,
+                rebase_results=rebase_results if rebase else None,
+            )
             write_note(repo_root, new_note, parse_note_file(s.path)[1])
         rebuild_index(repo_root)
 
@@ -406,9 +420,24 @@ def verify(
 
     if update:
         console.print(f"[yellow]re-pinned {len(stale)} stale note(s)[/yellow]")
+        for r in rebase_results:
+            if r.outcome == "rebased":
+                console.print(
+                    f"  [green]rebased[/green] {r.ref_path}: lines {r.original_lines} → {r.new_lines}"
+                )
+            elif r.outcome == "ambiguous":
+                console.print(
+                    f"  [yellow]rebased (ambiguous)[/yellow] {r.ref_path}: multiple matches; chose {r.new_lines} (closest to original {r.original_lines})"
+                )
+            elif r.outcome == "no_match":
+                console.print(
+                    f"  [yellow]warning[/yellow] {r.ref_path}: original content no longer present at any line range; pinned in place at {r.original_lines}"
+                )
 
-    for s in (stale if not update else []):
-        console.print(f"[red]stale[/red] {s.note.id} ({s.note.topic}) — {s.path.relative_to(repo_root)}")
+    for s in stale if not update else []:
+        console.print(
+            f"[red]stale[/red] {s.note.id} ({s.note.topic}) — {s.path.relative_to(repo_root)}"
+        )
         for r in s.references:
             if r.is_problem:
                 console.print(f"  [yellow]{r.state}[/yellow]: {r.reference.path}")
