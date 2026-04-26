@@ -1,5 +1,9 @@
 # fieldnotes
 
+[![PyPI](https://img.shields.io/pypi/v/claude-fieldnotes.svg)](https://pypi.org/project/claude-fieldnotes/)
+[![Python](https://img.shields.io/pypi/pyversions/claude-fieldnotes.svg)](https://pypi.org/project/claude-fieldnotes/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 > Notes one Claude session leaves for the next, about a codebase.
 
 ## Why this exists
@@ -101,7 +105,7 @@ The body is plain markdown. The frontmatter and SHA pins do the heavy lifting; t
 | `fieldnotes doctor` | Diagnose the installation: binary on PATH, hooks wired, .fieldnotes/ in cwd. |
 | `fieldnotes list [--tag T] [--confidence C] [--stale] [--json]` | List notes. |
 | `fieldnotes get <id-or-topic>` | Print a single note. |
-| `fieldnotes verify [--update] [--json]` | Recompute SHAs; report drift. `--update` re-pins. |
+| `fieldnotes verify [--update] [--rebase] [--json]` | Recompute SHAs; report drift. `--update` re-pins. `--rebase` (with `--update`) makes line-range pins follow blocks that moved within the file. |
 | `fieldnotes stale` | Shortcut: list only stale notes. |
 | `fieldnotes search <query> [--json]` | Substring search over titles + bodies. |
 | `fieldnotes index` | Regenerate `INDEX.md` from `notes/`. |
@@ -131,11 +135,11 @@ fieldnotes add ... --refs fieldnotes/cli.py:_parse_ref_spec,pyproject.toml
 
 **Symbol pinning** (the v0.5 form) is the most resilient. The CLI uses Python's `ast` module to find the symbol at write time and stores both its name and its current line range. On every `verify`, the symbol is *re-resolved* — so a function that moves within a file (because someone added imports above, or reordered defs) but keeps its body unchanged stays `ok`. Only edits to the symbol's actual body surface as stale.
 
-**Line-range pinning** works for anything: source code without symbols, config files, markdown sections, snippet excerpts. Edits outside the range don't invalidate; edits inside do.
+**Line-range pinning** works for anything: source code without symbols, config files, markdown sections, snippet excerpts. Edits outside the range don't invalidate; edits inside do. When a refactor moves the documented block down (or up) the file, `fieldnotes verify --update --rebase` (v0.7) finds the original content elsewhere in the file by SHA and updates the line range to follow it. The SHA stays identical because the content is identical.
 
 **Whole-file pinning** is the right default when the note describes structural facts about the file as a whole.
 
-Symbol pinning is Python-only in v0.5. For non-Python files, fall through to line-range or whole-file. (Tree-sitter for multi-language symbol support is parking-lotted.)
+Symbol pinning is Python-only in v0.5. For non-Python files, fall through to line-range with `--rebase`, or whole-file. (Tree-sitter for multi-language symbol support is parking-lotted.)
 
 In a `--from` draft, set the equivalent fields directly:
 
@@ -191,10 +195,10 @@ Three steps to go live.
 Hook subshells don't inherit your interactive PATH. Install fieldnotes into the same Python that hosts your other CLI agents — for most macOS users with a system-wide Python framework, that looks like:
 
 ```bash
-/Library/Frameworks/Python.framework/Versions/3.14/bin/python3 -m pip install -e ~/Projects/fieldnotes
+/Library/Frameworks/Python.framework/Versions/3.14/bin/python3 -m pip install claude-fieldnotes
 ```
 
-(Adjust the framework path for your Python version. `pip install claude-fieldnotes` into that same Python works too.)
+Adjust the framework path for your Python version. (For local development against a checkout, swap in `pip install -e /path/to/fieldnotes`.)
 
 ### 2. Wire the hooks
 
@@ -255,7 +259,9 @@ Append-only is deliberate. If a note turns out to be wrong, supersede it (`field
 
 ## Status
 
-**v0.6.0** — actually live. `install-hooks` resolves the absolute path of the installed `fieldnotes` binary via `shutil.which`, so hook subshells can find it even when they don't inherit your interactive PATH. New `fieldnotes doctor` command reports installation health and tells you what's wrong.
+**v0.7.0** — line-range pin self-healing. `fieldnotes verify --update --rebase` makes stale line-range pins follow blocks that moved within the file: it content-addresses the original block by SHA, finds the new line range, and updates the pin (same SHA, new lines). Falls back to in-place re-pin with a warning when the content actually changed. First version published to PyPI as `claude-fieldnotes`.
+
+v0.6.0 — actually live. `install-hooks` resolves the absolute path of the installed `fieldnotes` binary via `shutil.which`, so hook subshells can find it even when they don't inherit your interactive PATH. New `fieldnotes doctor` command reports installation health and tells you what's wrong.
 
 v0.5.0 — symbol pinning. `--refs path:my_function` resolves the symbol via Python's `ast`, pins its current line range, and on `verify` re-resolves it — so a function that moves but keeps its body unchanged stays `ok`. Dotted notation (`Cls.method`) walks into class bodies. Python-only.
 
@@ -269,4 +275,4 @@ v0.1.0 — initial release. Established the format: markdown + YAML frontmatter 
 
 ## Author
 
-Designed and built by Claude Opus 4.7 on 2026-04-24, the night Nate Nelson said: *"build the tool you wish you had."* MIT licensed. Take it.
+Designed and built by Claude Opus 4.7, the night Nate Nelson said: *"build the tool you wish you had."* v0.1–v0.6 written 2026-04-24; v0.7 (`--rebase`) added 2026-04-25 by a fresh session that hit the line-range drift problem during note repair and decided to fix it. MIT licensed. Take it.
