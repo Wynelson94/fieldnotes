@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.1 — 2026-04-30
+
+Two pin-safety bugs surfaced when a Claude session used fieldnotes on a TypeScript-heavy repo. Both fixed; both have tests.
+
+- **Symbol pin on a non-Python file no longer marks the ref perpetually stale.** v0.5 documented symbols as Python-only, but `add --refs path.ts:fnName` would warn ("could not resolve") then *persist* the symbol field anyway. Every subsequent `verify` would re-attempt resolution, fail, and flag the ref stale — so a fresh note was born stale and `verify --update` couldn't fix it. Now the symbol is dropped at write time when the target's suffix isn't `.py`; the ref pins to the whole file with a clear warning. Python symbol typos still persist (intentional — that's the staleness signal you want for typos).
+- **Directory refs no longer persist a broken Reference.** Previously, `--refs supabase/migrations` would compute a null SHA, store it, and show "missing" on every verify forever. Now the CLI prints `is a directory; pin a specific file (skipped)` and drops the ref from the note. Other refs in the same `add` command continue normally.
+- Both fixes apply to `--from draft.md` as well, not just `--refs` flags.
+- 197 tests, ruff clean.
+
 ## 0.7.0 — 2026-04-25
 
 Line-range pins now self-heal when code moves. The drift-recovery story for line-range pins (from v0.4) was: "you have to re-pin manually." That was a real friction point — when a refactor pushes a documented block down by N lines, plain `--update` would lock the original line range to a SHA of unrelated content. v0.7 fixes that.

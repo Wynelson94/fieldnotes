@@ -194,24 +194,41 @@ def _note_from_draft(
         target = Path(ref.path)
         if not target.is_absolute():
             target = repo_root / target
+        # Reject directory refs — same rationale as in _build_refs above.
+        if target.exists() and target.is_dir():
+            err_console.print(
+                f"[yellow]warning[/yellow]: {ref.path} is a directory; "
+                f"pin a specific file (skipped)"
+            )
+            continue
         # If the draft set a symbol but no lines, resolve now.
         effective_lines = ref.lines
-        if ref.symbol is not None and effective_lines is None:
-            resolved = resolve_symbol(target, ref.symbol)
-            if resolved is not None:
-                effective_lines = list(resolved)
-            else:
+        effective_symbol = ref.symbol
+        if effective_symbol is not None and effective_lines is None:
+            # Symbol pinning is Python-only — drop it for non-Python files
+            # so we don't persist a pin that can never resolve.
+            if target.suffix != ".py":
                 err_console.print(
-                    f"[yellow]warning[/yellow]: could not resolve symbol "
-                    f"{ref.symbol!r} in {ref.path}"
+                    f"[yellow]warning[/yellow]: symbol pinning is Python-only; "
+                    f"pinning {ref.path} as whole file"
                 )
+                effective_symbol = None
+            else:
+                resolved = resolve_symbol(target, effective_symbol)
+                if resolved is not None:
+                    effective_lines = list(resolved)
+                else:
+                    err_console.print(
+                        f"[yellow]warning[/yellow]: could not resolve symbol "
+                        f"{effective_symbol!r} in {ref.path}"
+                    )
         sha = compute_range_sha(target, effective_lines)
         if sha is None:
             err_console.print(
                 f"[yellow]warning[/yellow]: ref path not found: {ref.path} (sha left null)"
             )
         pinned_refs.append(
-            Reference(path=ref.path, sha=sha, lines=effective_lines, symbol=ref.symbol)
+            Reference(path=ref.path, sha=sha, lines=effective_lines, symbol=effective_symbol)
         )
     meta["references"] = [r.model_dump() for r in pinned_refs]
     note = Note(**meta)
@@ -272,15 +289,35 @@ def _build_refs(repo_root: Path, refs: str | None) -> list[Reference]:
         target = Path(ref_path)
         if not target.is_absolute():
             target = repo_root / target
+        # Reject directory refs — would persist a broken Reference forever
+        # (compute_range_sha returns None for directories, leaving a
+        # perpetually "missing" ref). Tell the user, drop this ref.
+        if target.exists() and target.is_dir():
+            err_console.print(
+                f"[yellow]warning[/yellow]: {ref_path} is a directory; "
+                f"pin a specific file (skipped)"
+            )
+            continue
         if symbol is not None and lines is None:
-            resolved = resolve_symbol(target, symbol)
-            if resolved is None:
+            # Symbol pinning is Python-only (v0.5). For non-Python files,
+            # silently degrade to whole-file rather than persisting a
+            # symbol that can never resolve (would mark stale on every
+            # verify forever).
+            if target.suffix != ".py":
                 err_console.print(
-                    f"[yellow]warning[/yellow]: could not resolve symbol "
-                    f"{symbol!r} in {ref_path} (pinning whole file)"
+                    f"[yellow]warning[/yellow]: symbol pinning is Python-only; "
+                    f"pinning {ref_path} as whole file"
                 )
+                symbol = None
             else:
-                lines = list(resolved)
+                resolved = resolve_symbol(target, symbol)
+                if resolved is None:
+                    err_console.print(
+                        f"[yellow]warning[/yellow]: could not resolve symbol "
+                        f"{symbol!r} in {ref_path} (pinning whole file)"
+                    )
+                else:
+                    lines = list(resolved)
         sha = compute_range_sha(target, lines)
         if sha is None:
             err_console.print(
