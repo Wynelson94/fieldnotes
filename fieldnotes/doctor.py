@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from fieldnotes import __version__
+from fieldnotes.githook import git_hook_installed, git_toplevel
 from fieldnotes.store import (
     DOT_DIR,
     RepoNotInitializedError,
@@ -188,6 +189,33 @@ def check_cwd_repo(cwd: Path) -> CheckResult:
     )
 
 
+def check_git_hook(cwd: Path) -> CheckResult | None:
+    """Whether the fieldnotes pre-commit gate is wired for cwd's repo.
+
+    Returns None when cwd isn't inside a fieldnotes repo, or that repo isn't a
+    git repo — the gate doesn't apply there, so doctor stays quiet about it.
+    """
+    try:
+        root = find_repo_root(cwd)
+    except RepoNotInitializedError:
+        return None
+    if git_toplevel(root) is None:
+        return None
+    installed, hook_path = git_hook_installed(root)
+    if installed:
+        return CheckResult(
+            name="git pre-commit gate",
+            ok=True,
+            detail=f"installed at {hook_path}",
+        )
+    return CheckResult(
+        name="git pre-commit gate",
+        ok=False,
+        detail="no fieldnotes pre-commit hook in this repo",
+        fix="Run `fieldnotes install-git-hook` to block commits that stale a note.",
+    )
+
+
 def run_diagnostics(
     settings_path: Path | None = None,
     cwd: Path | None = None,
@@ -201,4 +229,7 @@ def run_diagnostics(
     report.add(check_package())
     report.add(*check_hooks(settings, resolved))
     report.add(check_cwd_repo(where))
+    git_hook = check_git_hook(where)
+    if git_hook is not None:
+        report.add(git_hook)
     return report

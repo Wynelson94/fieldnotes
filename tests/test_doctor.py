@@ -8,10 +8,12 @@ from pathlib import Path
 from fieldnotes.doctor import (
     check_binary,
     check_cwd_repo,
+    check_git_hook,
     check_hooks,
     check_package,
     run_diagnostics,
 )
+from fieldnotes.githook import install_git_hook
 
 
 class TestBinaryCheck:
@@ -143,3 +145,24 @@ class TestRunDiagnostics:
         assert len(report.checks) >= 4
         # Without settings + without .fieldnotes/, all_ok is False.
         assert not report.all_ok
+
+
+class TestGitHookCheck:
+    def test_none_when_not_a_fieldnotes_repo(self, tmp_path: Path):
+        assert check_git_hook(tmp_path) is None
+
+    def test_none_when_repo_is_not_a_git_repo(self, repo: Path):
+        # `repo` has .fieldnotes/ but no git — the gate doesn't apply.
+        assert check_git_hook(repo) is None
+
+    def test_not_ok_when_hook_missing(self, git_repo: Path):
+        result = check_git_hook(git_repo)
+        assert result is not None
+        assert not result.ok
+        assert result.fix is not None
+
+    def test_ok_when_hook_installed(self, git_repo: Path):
+        install_git_hook(git_repo, "/abs/fieldnotes")
+        result = check_git_hook(git_repo)
+        assert result is not None
+        assert result.ok

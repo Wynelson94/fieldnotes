@@ -6,7 +6,7 @@ references:
   - 213
   - 237
   path: fieldnotes/cli.py
-  sha: e8d9a782616ffda75dae71565cc6e76d91ae5fc3d4b81ebc15c74e00004f7b29
+  sha: 848fac0c5cacc9a488f99e67fe36f00f9c91dfbfcf6e20469e9aee18d8403adf
   symbol: null
 - lines:
   - 50

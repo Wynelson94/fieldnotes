@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.0 — 2026-05-19
+
+The git pre-commit gate. The Claude Code hooks (`brief`, `touched`) *notify* about drift — they never *enforce* it, so a note silently goes stale the moment a commit changes a file it pins without the note being updated. This release closes that hole: fieldnotes can now install a git `pre-commit` hook that turns drift into a hard stop at commit time.
+
+- `fieldnotes install-git-hook`: installs a `pre-commit` hook into the repo's git hooks directory (honoring `core.hooksPath`). The hook runs `verify --check` and blocks the commit when any note is stale. Idempotent; never overwrites a pre-commit hook fieldnotes didn't write — it reports the foreign hook and prints the one line to add manually.
+- `fieldnotes init` now installs the gate automatically, so every repo that adopts fieldnotes is protected from the first commit. `--no-git-hook` opts out; non-git targets are skipped silently.
+- `verify --check`: exit non-zero when any note is stale — for git hooks and CI. `verify --quiet`: suppress the all-clear line while still reporting drift. The generated hook uses `verify --check --quiet`, so a clean commit is silent and a stale one shows exactly what drifted.
+- `fieldnotes doctor` now reports whether the pre-commit gate is wired for the current repo, with a fix line.
+- New module `fieldnotes/githook.py` — `effective_hooks_dir`, `build_hook_script`, `install_git_hook`, `git_hook_installed`. Used by the CLI and tests.
+- The hook degrades safely: contributors and CI without fieldnotes installed are never blocked, and repos without `.fieldnotes/` are ignored.
+- `__init__.py` version is back in sync (0.7.1 shipped with it still reading 0.7.0).
+- 231 tests, ruff clean.
+
 ## 0.7.1 — 2026-04-30
 
 Two pin-safety bugs surfaced when a Claude session used fieldnotes on a TypeScript-heavy repo. Both fixed; both have tests.

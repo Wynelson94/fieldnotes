@@ -8,7 +8,7 @@ references:
   symbol: null
 - lines: null
   path: fieldnotes/cli.py
-  sha: 0e7c55aa043a733ba80fb04fce02b5c3c2ba2b800a430313ea1ea27d42946c8c
+  sha: 0aaa33bbc06b8c6d510e85d29b17eac6261e8add90f91ad29d227106caf935ac
   symbol: null
 session_id: null
 superseded_by: null

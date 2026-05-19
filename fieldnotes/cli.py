@@ -17,6 +17,7 @@ from rich.table import Table
 from fieldnotes import __version__
 from fieldnotes.brief import build_brief
 from fieldnotes.doctor import run_diagnostics
+from fieldnotes.githook import install_git_hook
 from fieldnotes.index import rebuild_index
 from fieldnotes.models import SYMBOL_RE, Confidence, Note, Reference
 from fieldnotes.search import search as do_search
@@ -83,14 +84,43 @@ def init(
         Path | None,
         typer.Argument(help="Repo root. Defaults to cwd."),
     ] = None,
+    no_git_hook: Annotated[
+        bool,
+        typer.Option("--no-git-hook", help="Skip installing the pre-commit drift gate."),
+    ] = False,
 ) -> None:
-    """Scaffold .fieldnotes/ in the given repo (or cwd). Idempotent."""
+    """Scaffold .fieldnotes/ in the given repo (or cwd). Idempotent.
+
+    Also installs a git pre-commit hook that blocks commits leaving a note
+    stale — skipped with --no-git-hook or when the target isn't a git repo.
+    """
     target = (path or Path.cwd()).resolve()
     if not target.exists():
         err_console.print(f"[red]path {target} does not exist[/red]")
         raise typer.Exit(code=2)
     init_repo(target)
     console.print(f"[green]initialized[/green] {target / '.fieldnotes'}")
+    if not no_git_hook:
+        _install_init_git_hook(target)
+
+
+def _install_init_git_hook(target: Path) -> None:
+    """Best-effort pre-commit gate install during `init`. Never fails init."""
+    binary = _fieldnotes_binary(bare=False) or "fieldnotes"
+    result = install_git_hook(target, binary)
+    if result.status in ("installed", "updated"):
+        console.print(
+            f"[green]gate[/green] installed the pre-commit drift gate at {result.hook_path}"
+        )
+    elif result.status == "unchanged":
+        console.print(f"[dim]pre-commit gate already present at {result.hook_path}[/dim]")
+    elif result.status == "foreign":
+        console.print(
+            f"[yellow]pre-commit gate skipped[/yellow] — {result.detail}; "
+            "run `fieldnotes install-git-hook` for guidance"
+        )
+    else:  # not-a-git-repo
+        console.print("[dim]not a git repo — skipped the pre-commit gate[/dim]")
 
 
 @app.command()
@@ -409,6 +439,17 @@ def verify(
             help="With --update, try to relocate stale line-range pins by SHA before re-pinning. Lets pins follow code that moved within a file.",
         ),
     ] = False,
+    check: Annotated[
+        bool,
+        typer.Option(
+            "--check",
+            help="Exit non-zero when any note is stale. For git hooks and CI.",
+        ),
+    ] = False,
+    quiet: Annotated[
+        bool,
+        typer.Option("--quiet", help="Suppress the all-clear line; still report drift."),
+    ] = False,
     json_out: Annotated[bool, typer.Option("--json", help="Emit JSON.")] = False,
     repo: RepoOpt = None,
 ) -> None:
@@ -431,6 +472,8 @@ def verify(
             write_note(repo_root, new_note, parse_note_file(s.path)[1])
         rebuild_index(repo_root)
 
+    should_fail = check and bool(stale) and not update
+
     if json_out:
         out = []
         for s in statuses:
@@ -445,14 +488,18 @@ def verify(
                 }
             )
         console.print_json(data=out)
+        if should_fail:
+            raise typer.Exit(code=1)
         return
 
     if not statuses:
-        console.print("[dim]no notes[/dim]")
+        if not quiet:
+            console.print("[dim]no notes[/dim]")
         return
 
     if not stale:
-        console.print(f"[green]all {len(statuses)} notes verified[/green]")
+        if not quiet:
+            console.print(f"[green]all {len(statuses)} notes verified[/green]")
         return
 
     if update:
@@ -478,6 +525,9 @@ def verify(
         for r in s.references:
             if r.is_problem:
                 console.print(f"  [yellow]{r.state}[/yellow]: {r.reference.path}")
+
+    if should_fail:
+        raise typer.Exit(code=1)
 
 
 @app.command()
@@ -853,6 +903,64 @@ def install_hooks(
         console.print(f"[dim]hooks already present in {target} — nothing changed[/dim]")
     else:
         console.print(f"[green]added[/green] {added} hook entr(ies) to {target}")
+    console.print(f"[dim]binary: {binary}[/dim]")
+
+
+def _fieldnotes_binary(bare: bool) -> str | None:
+    """Resolve the fieldnotes command to bake into a generated hook.
+
+    Absolute path by default (hook subshells don't inherit an interactive PATH);
+    the bare `fieldnotes` when `bare` is set. None when non-bare and not on PATH.
+    """
+    if bare:
+        return "fieldnotes"
+    return shutil.which("fieldnotes")
+
+
+@app.command(name="install-git-hook")
+def install_git_hook_cmd(
+    bare: Annotated[
+        bool,
+        typer.Option(
+            "--bare",
+            help="Bake the relative `fieldnotes` command into the hook instead of an "
+            "absolute path. Only works if fieldnotes is on the PATH commit hooks inherit.",
+        ),
+    ] = False,
+    repo: RepoOpt = None,
+) -> None:
+    """Install a git pre-commit hook that blocks commits leaving a note stale.
+
+    Idempotent. Never overwrites a pre-commit hook fieldnotes didn't write.
+    """
+    repo_root = _resolve_repo(repo)
+    binary = _fieldnotes_binary(bare)
+    if binary is None:
+        err_console.print(
+            "[red]fieldnotes is not on PATH from this shell.[/red]\n"
+            "Install it into the Python that hosts your CLI agents, or pass --bare."
+        )
+        raise typer.Exit(code=1)
+
+    result = install_git_hook(repo_root, binary)
+    if result.status == "not-a-git-repo":
+        err_console.print(f"[red]{result.detail}[/red]")
+        raise typer.Exit(code=1)
+    if result.status == "foreign":
+        err_console.print(
+            f"[yellow]not overwriting[/yellow] {result.hook_path}\n"
+            f"  {result.detail}\n"
+            "  To gate fieldnotes drift, add this line to that hook:\n"
+            f"    {binary} verify --check --quiet || exit 1"
+        )
+        raise typer.Exit(code=1)
+    if result.status == "unchanged":
+        console.print(
+            f"[dim]gate already installed at {result.hook_path} — nothing changed[/dim]"
+        )
+        return
+    verb = "installed" if result.status == "installed" else "refreshed"
+    console.print(f"[green]{verb}[/green] the fieldnotes pre-commit gate at {result.hook_path}")
     console.print(f"[dim]binary: {binary}[/dim]")
 
 
