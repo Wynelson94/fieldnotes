@@ -102,10 +102,11 @@ The body is plain markdown. The frontmatter and SHA pins do the heavy lifting; t
 | `fieldnotes brief` | Compact session-start summary. Silent when no `.fieldnotes/` exists — safe to wire as a hook. |
 | `fieldnotes touched <path>` | Quietly surface notes that reference an edited file. Silent on no match. Designed for PostToolUse hooks. |
 | `fieldnotes install-hooks [--apply] [--bare]` | Print (or apply) the Claude Code hook snippet. Idempotent. Resolves an absolute path to the installed binary unless `--bare`. |
-| `fieldnotes doctor` | Diagnose the installation: binary on PATH, hooks wired, .fieldnotes/ in cwd. |
+| `fieldnotes install-git-hook [--bare]` | Install a git pre-commit hook that blocks commits leaving a note stale. Idempotent; never clobbers a foreign hook. |
+| `fieldnotes doctor` | Diagnose the installation: binary on PATH, Claude Code hooks wired, git gate wired, .fieldnotes/ in cwd. |
 | `fieldnotes list [--tag T] [--confidence C] [--stale] [--json]` | List notes. |
 | `fieldnotes get <id-or-topic>` | Print a single note. |
-| `fieldnotes verify [--update] [--rebase] [--json]` | Recompute SHAs; report drift. `--update` re-pins. `--rebase` (with `--update`) makes line-range pins follow blocks that moved within the file. |
+| `fieldnotes verify [--check] [--quiet] [--update] [--rebase] [--json]` | Recompute SHAs; report drift. `--check` exits non-zero on drift (git hooks / CI); `--quiet` mutes the all-clear line. `--update` re-pins; `--rebase` makes line-range pins follow moved blocks. |
 | `fieldnotes stale` | Shortcut: list only stale notes. |
 | `fieldnotes search <query> [--json]` | Substring search over titles + bodies. |
 | `fieldnotes index` | Regenerate `INDEX.md` from `notes/`. |
@@ -238,6 +239,20 @@ fieldnotes: 2 notes reference fieldnotes/cli.py — 0001 (cli-entry-points), 000
 
 The point is: stop having to remember the tool exists.
 
+## Enforcing it: the pre-commit gate
+
+`brief` and `touched` *notify* — they surface stale notes, but nothing stops a commit from leaving one stale. The pre-commit gate closes that loop.
+
+```bash
+fieldnotes install-git-hook
+```
+
+This installs a git `pre-commit` hook that runs `verify --check` and **blocks the commit** when any note is stale — i.e. a commit changed a file a note pins without the note being updated. Fix the note, or run `fieldnotes verify --update` to re-pin, then commit again.
+
+`fieldnotes init` installs the gate automatically, so every repo that adopts fieldnotes is protected from its first commit. Pass `--no-git-hook` to skip it.
+
+The hook is well-behaved: it honors `core.hooksPath`, never overwrites a pre-commit hook fieldnotes didn't write (it prints the one line to add instead), and no-ops cleanly for contributors or CI without fieldnotes installed. `fieldnotes doctor` reports whether the gate is wired.
+
 ## Reference states
 
 - **`ok`** — file exists, sha matches what was pinned.
@@ -259,7 +274,9 @@ Append-only is deliberate. If a note turns out to be wrong, supersede it (`field
 
 ## Status
 
-**v0.7.0** — line-range pin self-healing. `fieldnotes verify --update --rebase` makes stale line-range pins follow blocks that moved within the file: it content-addresses the original block by SHA, finds the new line range, and updates the pin (same SHA, new lines). Falls back to in-place re-pin with a warning when the content actually changed. First version published to PyPI as `claude-fieldnotes`.
+**v0.8.0** — the pre-commit gate. `fieldnotes install-git-hook` installs a git `pre-commit` hook that blocks any commit leaving a note stale; `init` installs it automatically. `verify --check` exits non-zero on drift (for git hooks and CI), `--quiet` mutes the all-clear line. `brief` and `touched` notify about drift — this is the layer that *enforces* it.
+
+v0.7.0 — line-range pin self-healing. `fieldnotes verify --update --rebase` makes stale line-range pins follow blocks that moved within the file: it content-addresses the original block by SHA, finds the new line range, and updates the pin (same SHA, new lines). Falls back to in-place re-pin with a warning when the content actually changed. First version published to PyPI as `claude-fieldnotes`.
 
 v0.6.0 — actually live. `install-hooks` resolves the absolute path of the installed `fieldnotes` binary via `shutil.which`, so hook subshells can find it even when they don't inherit your interactive PATH. New `fieldnotes doctor` command reports installation health and tells you what's wrong.
 
