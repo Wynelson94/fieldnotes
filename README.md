@@ -274,7 +274,9 @@ Append-only is deliberate. If a note turns out to be wrong, supersede it (`field
 
 ## Status
 
-**v0.8.0** — the pre-commit gate. `fieldnotes install-git-hook` installs a git `pre-commit` hook that blocks any commit leaving a note stale; `init` installs it automatically. `verify --check` exits non-zero on drift (for git hooks and CI), `--quiet` mutes the all-clear line. `brief` and `touched` notify about drift — this is the layer that *enforces* it.
+**v0.8.1** — audit fixes. Hook generators shell-quote the binary path they bake in (an unquoted path with a space made the Claude Code hooks fail silently on every trigger); `verify --rebase` now implies `--update` instead of silently no-opping when run alone.
+
+v0.8.0 — the pre-commit gate. `fieldnotes install-git-hook` installs a git `pre-commit` hook that blocks any commit leaving a note stale; `init` installs it automatically. `verify --check` exits non-zero on drift (for git hooks and CI), `--quiet` mutes the all-clear line. `brief` and `touched` notify about drift — this is the layer that *enforces* it.
 
 v0.7.0 — line-range pin self-healing. `fieldnotes verify --update --rebase` makes stale line-range pins follow blocks that moved within the file: it content-addresses the original block by SHA, finds the new line range, and updates the pin (same SHA, new lines). Falls back to in-place re-pin with a warning when the content actually changed. First version published to PyPI as `claude-fieldnotes`.
 

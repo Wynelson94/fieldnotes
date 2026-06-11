@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.1 — 2026-06-11
+
+Audit release: three silent-failure bugs found in a code audit, all fixed with tests.
+
+- **`install-hooks` now shell-quotes the binary path it bakes into the Claude Code hook commands.** Previously the absolute path from `shutil.which` went in unquoted — a path containing a space produced `brief`/`touched` hooks that failed on every trigger, silently, behind the trailing `|| true`. Quoting a clean path is a no-op, so hooks already applied to `settings.json` still dedupe on re-apply.
+- **The git pre-commit gate script quotes its binary path with `shlex.quote`** instead of hand-placed single quotes, which broke on a path containing a single quote. Re-running `install-git-hook` (or `init`) refreshes an existing gate in place.
+- **`verify --rebase` now implies `--update`.** Alone it used to list stale notes and exit 0 without relocating anything — a silent no-op (the flag was only honored alongside `--update`). Relocating without re-pinning has no meaning, so the flag now does what it says on its own.
+- Repo-wide `ruff format` pass; no behavior change.
+- 237 tests, ruff clean.
+
 ## 0.8.0 — 2026-05-19
 
 The git pre-commit gate. The Claude Code hooks (`brief`, `touched`) *notify* about drift — they never *enforce* it, so a note silently goes stale the moment a commit changes a file it pins without the note being updated. This release closes that hole: fieldnotes can now install a git `pre-commit` hook that turns drift into a hard stop at commit time.
