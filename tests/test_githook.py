@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 import stat
 import subprocess
 from pathlib import Path
@@ -40,6 +41,12 @@ class TestEffectiveHooksDir:
         assert effective_hooks_dir(git_repo) == git_repo / ".githooks"
 
 
+def _command_v_words(script: str) -> list[str]:
+    """Shell word-split the hook's `command -v` line — how sh will read the binary."""
+    line = next(ln for ln in script.splitlines() if ln.startswith("command -v"))
+    return shlex.split(line)
+
+
 class TestBuildHookScript:
     def test_contains_marker_binary_and_check(self):
         script = build_hook_script("/abs/fieldnotes")
@@ -47,6 +54,14 @@ class TestBuildHookScript:
         assert HOOK_MARKER in script
         assert "/abs/fieldnotes" in script
         assert "verify --check" in script
+
+    def test_binary_with_space_stays_one_word(self):
+        binary = "/Users/some user/bin/fieldnotes"
+        assert _command_v_words(build_hook_script(binary))[2] == binary
+
+    def test_binary_with_single_quote_is_shell_safe(self):
+        binary = "/Users/o'brien/bin/fieldnotes"
+        assert _command_v_words(build_hook_script(binary))[2] == binary
 
 
 class TestHookIsOurs:

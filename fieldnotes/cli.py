@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import shutil
 import sys
 from datetime import datetime, timezone
@@ -436,7 +437,7 @@ def verify(
         bool,
         typer.Option(
             "--rebase",
-            help="With --update, try to relocate stale line-range pins by SHA before re-pinning. Lets pins follow code that moved within a file.",
+            help="Relocate stale line-range pins by SHA before re-pinning, so pins follow code that moved within a file. Implies --update.",
         ),
     ] = False,
     check: Annotated[
@@ -454,6 +455,9 @@ def verify(
     repo: RepoOpt = None,
 ) -> None:
     """Recompute SHAs and report drift."""
+    # --rebase alone used to be a silent no-op; relocating without re-pinning
+    # has no meaning, so it implies --update.
+    update = update or rebase
     repo_root = _resolve_repo(repo)
     rows = list_notes(repo_root)
     statuses = [check_note(repo_root, n, p) for (n, p) in rows]
@@ -772,7 +776,10 @@ def _build_hook_snippet(binary: str = "fieldnotes") -> dict:
     """Build the Claude Code hook snippet around a binary path.
 
     `binary` is the command (or absolute path) used to invoke fieldnotes.
+    Shell-quoted on the way in: hook commands run through sh, and an unquoted
+    path with a space fails silently behind the trailing `|| true`.
     """
+    quoted = shlex.quote(binary)
     return {
         "hooks": {
             "SessionStart": [
@@ -781,7 +788,7 @@ def _build_hook_snippet(binary: str = "fieldnotes") -> dict:
                     "hooks": [
                         {
                             "type": "command",
-                            "command": f"{binary} brief 2>/dev/null || true",
+                            "command": f"{quoted} brief 2>/dev/null || true",
                         }
                     ],
                 }
@@ -792,7 +799,7 @@ def _build_hook_snippet(binary: str = "fieldnotes") -> dict:
                     "hooks": [
                         {
                             "type": "command",
-                            "command": f"{binary} touched --stdin 2>/dev/null || true",
+                            "command": f"{quoted} touched --stdin 2>/dev/null || true",
                         }
                     ],
                 }

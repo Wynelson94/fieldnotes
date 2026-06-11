@@ -11,6 +11,7 @@ tool didn't write.
 
 from __future__ import annotations
 
+import shlex
 import stat
 import subprocess
 from dataclasses import dataclass
@@ -65,6 +66,7 @@ def build_hook_script(binary: str) -> str:
     `binary` is an absolute path by default (hook subshells don't inherit an
     interactive PATH) — or the bare `fieldnotes` when the caller opts in.
     """
+    quoted = shlex.quote(binary)
     return f"""#!/usr/bin/env sh
 # {HOOK_MARKER}  ·  installed by `fieldnotes install-git-hook`
 #
@@ -73,13 +75,13 @@ def build_hook_script(binary: str) -> str:
 # Disable by deleting this file.
 
 # Contributors / CI without fieldnotes installed are never blocked.
-command -v '{binary}' >/dev/null 2>&1 || exit 0
+command -v {quoted} >/dev/null 2>&1 || exit 0
 
 # Only gate repos that actually use fieldnotes.
 top=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 [ -d "$top/.fieldnotes" ] || exit 0
 
-'{binary}' verify --check --quiet --repo "$top" || {{
+{quoted} verify --check --quiet --repo "$top" || {{
   echo "fieldnotes: commit blocked — a note is stale (see above)." >&2
   echo "  fix the note, or re-pin with: fieldnotes verify --update" >&2
   exit 1
