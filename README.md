@@ -125,6 +125,10 @@ fieldnotes add ... --refs fieldnotes/cli.py:_parse_ref_spec
 fieldnotes add ... --refs fieldnotes/symbols.py:resolve_symbol
 fieldnotes add ... --refs fieldnotes/cli.py:MyClass.my_method
 
+# Pin to a TypeScript/JavaScript declaration or a SQL CREATE block (v0.10):
+fieldnotes add ... --refs src/api/orders.ts:createOrder
+fieldnotes add ... --refs supabase/migrations/001.sql:contacts_select
+
 # Pin to lines 12 through 84 (1-indexed, inclusive):
 fieldnotes add ... --refs fieldnotes/cli.py:12-84
 
@@ -135,13 +139,13 @@ fieldnotes add ... --refs fieldnotes/cli.py:42
 fieldnotes add ... --refs fieldnotes/cli.py:_parse_ref_spec,pyproject.toml
 ```
 
-**Symbol pinning** (the v0.5 form) is the most resilient. The CLI uses Python's `ast` module to find the symbol at write time and stores both its name and its current line range. On every `verify`, the symbol is *re-resolved* — so a function that moves within a file (because someone added imports above, or reordered defs) but keeps its body unchanged stays `ok`. Only edits to the symbol's actual body surface as stale.
+**Symbol pinning** is the most resilient. The CLI finds the symbol at write time and stores both its name and its current line range. On every `verify`, the symbol is *re-resolved* — so a function that moves within a file (because someone added imports above, or reordered defs) but keeps its body unchanged stays `ok`. Only edits to the symbol's actual body surface as stale. Python resolves via `ast` (dotted `Cls.method` supported); TypeScript/JavaScript (`.ts/.tsx/.js/.jsx/.mjs/.cjs`) resolves top-level `function`/`class`/`const`/`interface`/`type`/`enum` declarations by regex + brace balance; SQL resolves `CREATE TABLE/POLICY/FUNCTION/TRIGGER/VIEW/INDEX` blocks (schema-qualified and quoted names answer to their bare identifier; `$$` function bodies handled). The non-Python resolvers are deliberately parser-free — a mis-scanned range surfaces as stale on the next verify, never silently.
 
 **Line-range pinning** works for anything: source code without symbols, config files, markdown sections, snippet excerpts. Edits outside the range don't invalidate; edits inside do. When a refactor moves the documented block down (or up) the file, `fieldnotes verify --update --rebase` (v0.7) finds the original content elsewhere in the file by SHA and updates the line range to follow it. The SHA stays identical because the content is identical.
 
 **Whole-file pinning** is the right default when the note describes structural facts about the file as a whole.
 
-Symbol pinning is Python-only in v0.5. For non-Python files, fall through to line-range with `--rebase`, or whole-file. (Tree-sitter for multi-language symbol support is parking-lotted.)
+For file types outside Python/TS/JS/SQL, a symbol spec degrades to a whole-file pin with a warning — fall through to line-range pinning (rebase keeps it healing) or whole-file. (Tree-sitter remains parking-lotted; the regex resolvers cover the real-world ref distribution without a parser dependency.)
 
 In a `--from` draft, set the equivalent fields directly:
 
@@ -277,7 +281,9 @@ Append-only is deliberate. If a note turns out to be wrong, supersede it (`field
 
 ## Status
 
-**v0.9.0** — staleness you can trust and explain. `fieldnotes diff <id>` shows what actually changed under a note's pins since they were pinned. `verify --update` rebases moved line-range pins by default and lists notes whose pinned content *changed* for a re-read — re-pinning fixes the SHA, not the claim. Advisory refs (`--advisory-refs`) pin volatile files for context without ever gating on them. `verify`/`brief` nudge once, dimly, when the pre-commit gate isn't installed.
+**v0.10.0** — symbol pinning beyond Python. TypeScript/JavaScript declarations and SQL CREATE blocks (tables, RLS policies, functions, triggers, views, indexes) can now be pinned by name and re-resolve on every verify, so they follow moved code the way Python symbols always have. Driven by real usage: two-thirds of references in the wild point at .ts/.tsx/.sql files and were stuck with whole-file pins.
+
+v0.9.0 — staleness you can trust and explain. `fieldnotes diff <id>` shows what actually changed under a note's pins since they were pinned. `verify --update` rebases moved line-range pins by default and lists notes whose pinned content *changed* for a re-read — re-pinning fixes the SHA, not the claim. Advisory refs (`--advisory-refs`) pin volatile files for context without ever gating on them. `verify`/`brief` nudge once, dimly, when the pre-commit gate isn't installed.
 
 v0.8.1 — audit fixes. Hook generators shell-quote the binary path they bake in (an unquoted path with a space made the Claude Code hooks fail silently on every trigger); `verify --rebase` now implies `--update` instead of silently no-opping when run alone.
 

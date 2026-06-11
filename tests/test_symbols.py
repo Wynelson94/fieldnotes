@@ -74,9 +74,10 @@ class TestResolveSymbol:
         p.write_text("class Foo:\n    def a(self): pass\n")
         assert resolve_symbol(p, "Foo.b") is None
 
-    def test_non_python_file(self, tmp_path: Path):
-        p = tmp_path / "x.js"
-        p.write_text("function thing() {}\n")
+    def test_unsupported_file_type(self, tmp_path: Path):
+        # .js resolves as of v0.10; suffixes outside SYMBOL_SUFFIXES still don't.
+        p = tmp_path / "x.go"
+        p.write_text("func thing() {}\n")
         assert resolve_symbol(p, "thing") is None
 
     def test_syntax_error(self, tmp_path: Path):

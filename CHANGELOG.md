@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0 — 2026-06-11
+
+Symbol pinning beyond Python. In real-world usage, two-thirds of pinned references point at TypeScript and SQL files, where the only options were whole-file pins (noisy — any edit anywhere flags the note) or line ranges (brittle without symbols' re-resolution). This closes the gap.
+
+- **TypeScript/JavaScript symbols** (`.ts/.tsx/.js/.jsx/.mjs/.cjs`): `--refs src/api.ts:createOrder` resolves top-level `function` / `class` / `const` / `let` / `var` / `interface` / `type` / `enum` declarations (export/default/async/declare/abstract modifiers handled) via regex + brace-balance scanning. Re-resolved on every verify, so a declaration that moves within its file stays `ok`; only body edits go stale.
+- **SQL symbols** (`.sql`): `--refs migrations/001.sql:contacts_select` resolves `CREATE TABLE/POLICY/FUNCTION/TRIGGER/VIEW/INDEX` blocks. Schema-qualified (`public.contacts`) and quoted (`"name"`) names answer to their bare identifier, case-insensitively; `$$`-quoted function bodies don't end the block early. Built for RLS-policy and migration notes — the dominant SQL use in the wild.
+- No parser dependencies — stdlib `re` only. The resolvers are deliberately imperfect: a mis-scanned range surfaces as stale on the next verify, never silently. Known v1 limits: top-level declarations only (no TS dotted notation), multi-line template literals with braces can misbalance the TS scan, tagged dollar-quotes (`$body$`) unhandled in SQL.
+- Symbol specs on unsupported file types still degrade to whole-file pins with a warning (the v0.7.1 contract, now scoped to genuinely unsupported suffixes).
+- 290 tests, ruff clean.
+
 ## 0.9.0 — 2026-06-11
 
 Staleness you can trust and explain. Re-pinning a stale note fixes the SHA but not the claim — this release makes the gap between those two visible, and stops the tool from letting you do the wrong thing the easy way. Shaped by real usage: 76 notes across 7 repos, 47% stale, and the staleness almost perfectly predicted by whether the pre-commit gate was installed.

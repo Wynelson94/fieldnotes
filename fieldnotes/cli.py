@@ -37,7 +37,7 @@ from fieldnotes.store import (
     to_repo_relative,
     write_note,
 )
-from fieldnotes.symbols import resolve_symbol
+from fieldnotes.symbols import SYMBOL_SUFFIXES, resolve_symbol
 from fieldnotes.verify import (
     NoteStatus,
     RebaseResult,
@@ -253,11 +253,11 @@ def _note_from_draft(
         effective_lines = ref.lines
         effective_symbol = ref.symbol
         if effective_symbol is not None and effective_lines is None:
-            # Symbol pinning is Python-only — drop it for non-Python files
-            # so we don't persist a pin that can never resolve.
-            if target.suffix != ".py":
+            # Unsupported file types drop the symbol so we don't persist a
+            # pin that can never resolve.
+            if target.suffix.lower() not in SYMBOL_SUFFIXES:
                 err_console.print(
-                    f"[yellow]warning[/yellow]: symbol pinning is Python-only; "
+                    f"[yellow]warning[/yellow]: symbol pinning supports Python/TS/JS/SQL; "
                     f"pinning {ref.path} as whole file"
                 )
                 effective_symbol = None
@@ -354,13 +354,12 @@ def _build_refs(repo_root: Path, refs: str | None, advisory: bool = False) -> li
             )
             continue
         if symbol is not None and lines is None:
-            # Symbol pinning is Python-only (v0.5). For non-Python files,
-            # silently degrade to whole-file rather than persisting a
-            # symbol that can never resolve (would mark stale on every
-            # verify forever).
-            if target.suffix != ".py":
+            # Unsupported file types degrade to whole-file rather than
+            # persisting a symbol that can never resolve (would mark stale
+            # on every verify forever).
+            if target.suffix.lower() not in SYMBOL_SUFFIXES:
                 err_console.print(
-                    f"[yellow]warning[/yellow]: symbol pinning is Python-only; "
+                    f"[yellow]warning[/yellow]: symbol pinning supports Python/TS/JS/SQL; "
                     f"pinning {ref_path} as whole file"
                 )
                 symbol = None

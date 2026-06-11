@@ -5,14 +5,14 @@ references:
 - advisory: false
   lines: null
   path: fieldnotes/cli.py
-  pinned_at: '2026-06-11T17:44:23.276362Z'
-  sha: 3833f797e56b9c007da840367a5ae0514e8e384bdc5c16cc996354e692d3b42d
+  pinned_at: '2026-06-11T17:54:48.146743Z'
+  sha: 9795ceaa2f8725d2e43a17a9b6a2f0a4c7bf6aa85ee05aea3b6b6ad67a016b28
   symbol: null
 - advisory: true
   lines: null
   path: pyproject.toml
-  pinned_at: '2026-06-11T17:46:31.869480Z'
-  sha: 201063e68c3f937d56b8349371712c12d4dcbd7473cf0afdb44459a3565f6d84
+  pinned_at: '2026-06-11T17:54:48.146905Z'
+  sha: 22f857f72d55eb42572bafb48ecff0b4e8e831d59279fbf848db154ea9eed67a
   symbol: null
 session_id: null
 superseded_by: null

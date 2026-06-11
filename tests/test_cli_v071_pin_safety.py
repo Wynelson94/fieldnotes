@@ -18,8 +18,8 @@ runner = CliRunner()
 
 
 class TestSymbolOnNonPythonFile:
-    def test_symbol_dropped_for_typescript(self, repo: Path):
-        """`--refs path.ts:fnName` should pin whole file, not persist symbol."""
+    def test_typescript_symbol_now_resolves(self, repo: Path):
+        """v0.10: `--refs path.ts:fnName` resolves and persists (was dropped in v0.7.1)."""
         src = repo / "src" / "auth.ts"
         src.parent.mkdir(parents=True)
         src.write_text("export function requireOwnership() { return true }\n")
@@ -41,13 +41,12 @@ class TestSymbolOnNonPythonFile:
             ],
         )
         assert result.exit_code == 0, result.output
-        assert "Python-only" in result.output
 
         note, _body = parse_note_file(notes_dir(repo) / "0001-x.md")
         ref = note.references[0]
-        assert ref.symbol is None, "symbol field must be dropped for non-Python files"
-        assert ref.sha is not None, "sha should be computed for the whole file"
-        assert ref.lines is None
+        assert ref.symbol == "requireOwnership"
+        assert ref.sha is not None
+        assert ref.lines == [1, 1]
 
     def test_python_symbol_typo_still_persists_to_flag_stale(self, repo: Path):
         """For Python files, missing symbol persists so it stays stale (typo signal)."""
@@ -81,8 +80,8 @@ class TestSymbolOnNonPythonFile:
 
 
 class TestSymbolOnNonPythonFileViaDraft:
-    def test_draft_symbol_dropped_for_non_python(self, repo: Path, tmp_path: Path):
-        """--from draft.md with symbol on non-Python file should also degrade."""
+    def test_draft_symbol_resolves_for_typescript(self, repo: Path, tmp_path: Path):
+        """v0.10: --from draft.md with a TS symbol resolves it (was dropped)."""
         src = repo / "src" / "auth.ts"
         src.parent.mkdir(parents=True)
         src.write_text("export function f() {}\n")
@@ -110,11 +109,10 @@ class TestSymbolOnNonPythonFileViaDraft:
             ["add", "--from", str(draft), "--repo", str(repo)],
         )
         assert result.exit_code == 0, result.output
-        assert "Python-only" in result.output
 
         note, _body = parse_note_file(notes_dir(repo) / "0001-x.md")
         ref = note.references[0]
-        assert ref.symbol is None
+        assert ref.symbol == "f"
         assert ref.sha is not None
 
 
