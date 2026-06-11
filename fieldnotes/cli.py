@@ -19,6 +19,7 @@ from fieldnotes import __version__
 from fieldnotes.brief import build_brief
 from fieldnotes.diffcmd import diff_note, is_git_repo, pin_descriptor
 from fieldnotes.doctor import run_diagnostics
+from fieldnotes.gaps import churn_map, coverage_paths, hottest_gap, uncovered_by_churn
 from fieldnotes.githook import git_hook_installed, git_toplevel, install_git_hook
 from fieldnotes.index import rebuild_index
 from fieldnotes.models import SYMBOL_RE, Confidence, Note, Reference, Validation
@@ -702,6 +703,52 @@ def verify(
         raise typer.Exit(code=1)
 
 
+@app.command()
+def gaps(
+    since: Annotated[
+        str,
+        typer.Option("--since", help="Git time window, e.g. '90 days ago' or '2026-01-01'."),
+    ] = "90 days ago",
+    limit: Annotated[int, typer.Option("--limit", help="Max files to list.")] = 10,
+    json_out: Annotated[bool, typer.Option("--json", help="Emit JSON.")] = False,
+    repo: RepoOpt = None,
+) -> None:
+    """The hottest-churning files with no notes — where undocumented knowledge piles up.
+
+    The gate catches a note going stale; this catches the note that was never
+    written. Data, not nagging: run it when you want the number.
+    """
+    repo_root = _resolve_repo(repo)
+    ranked = uncovered_by_churn(repo_root, since=since)
+    if ranked is None:
+        console.print("[dim]not a git repository — gaps needs git history[/dim]")
+        return
+    churn = churn_map(repo_root, since=since) or {}
+    covered = coverage_paths(repo_root)
+    changed_covered = sum(1 for p in churn if p in covered)
+    if json_out:
+        console.print_json(
+            data={
+                "since": since,
+                "changed_files": len(churn),
+                "covered": changed_covered,
+                "gaps": [{"path": p, "commits": n} for p, n in ranked[:limit]],
+            }
+        )
+        return
+    console.print(
+        f"[bold]coverage[/bold] · {changed_covered} of {len(churn)} files changed "
+        f"since {since!r} are covered by notes"
+    )
+    if not ranked:
+        console.print("[green]no gaps — every changed file has a note[/green]")
+        return
+    for p, n in ranked[:limit]:
+        console.print(f"  [cyan]{p}[/cyan]  {n} commit(s), no notes")
+    if len(ranked) > limit:
+        console.print(f"  [dim]… and {len(ranked) - limit} more (--limit to widen)[/dim]")
+
+
 @app.command(name="diff")
 def diff_cmd(
     key: Annotated[str, typer.Argument(help="Note id (e.g. 0007 or 7) or topic slug.")],
@@ -917,6 +964,9 @@ def brief(
             console.print(f"    [cyan]{path}[/cyan]")
             for n, _p in hits:
                 console.print(f"      · {n.id} {n.title}  [dim]({n.confidence.value})[/dim]")
+    gap = hottest_gap(repo_root)
+    if gap is not None:
+        console.print(f"  [yellow]coverage gap:[/yellow] {gap[0]} ({gap[1]} commits, no notes)")
     _print_gate_tip(repo_root)
 
 

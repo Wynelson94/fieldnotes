@@ -63,9 +63,7 @@ class TestValidationModel:
 class TestConfirmCommand:
     def test_confirm_appends_validation(self, repo: Path):
         _add(repo)
-        result = runner.invoke(
-            app, ["confirm", "0001", "--by", "claude-test", "--repo", str(repo)]
-        )
+        result = runner.invoke(app, ["confirm", "0001", "--by", "claude-test", "--repo", str(repo)])
         assert result.exit_code == 0, result.output
         vals = _validations(repo)
         assert len(vals) == 1

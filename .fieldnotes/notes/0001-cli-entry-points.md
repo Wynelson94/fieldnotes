@@ -5,8 +5,8 @@ references:
 - advisory: false
   lines: null
   path: fieldnotes/cli.py
-  pinned_at: '2026-06-11T18:19:09.248255Z'
-  sha: 84a807f34fbd2e21e211796addb59496daad48d1f315eafe317442e1ceebb935
+  pinned_at: '2026-06-11T18:21:17.309773Z'
+  sha: e9018449f00a3059b2e8f77a461fe5a2ffa6847c509387ed82104c8e7c4e1c2e
   symbol: null
 - advisory: true
   lines: null

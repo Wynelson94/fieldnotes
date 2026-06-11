@@ -4,8 +4,8 @@ id: '0004'
 references:
 - advisory: false
   lines:
-  - 231
-  - 255
+  - 232
+  - 256
   path: fieldnotes/cli.py
   pinned_at: null
   sha: 848fac0c5cacc9a488f99e67fe36f00f9c91dfbfcf6e20469e9aee18d8403adf
@@ -28,6 +28,7 @@ tags:
 - precision
 title: Why --refs supports path:N-M syntax
 topic: line-range-pinning
+validations: []
 written_at: '2026-04-25T04:39:01.093859Z'
 written_by: claude-opus-4-7
 ---
