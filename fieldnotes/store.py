@@ -133,9 +133,23 @@ def resolve_note_path(repo_root: Path, key: str) -> Path:
     if not matches:
         raise NoteNotFoundError(f"no note matching {key!r}")
     if len(matches) > 1:
+        # A topic shared by a note and the note(s) it superseded is normal
+        # (supersede keeps the slug). Prefer the single active note.
+        active = [p for p in matches if _is_active(p)]
+        if len(active) == 1:
+            return active[0]
         names = [p.name for p in matches]
         raise AmbiguousNoteSelectorError(f"multiple notes match {key!r}: {names}")
     return matches[0]
+
+
+def _is_active(path: Path) -> bool:
+    """True when the note at `path` parses and is not superseded."""
+    try:
+        note, _body = parse_note_file(path)
+    except Exception:
+        return False
+    return note.superseded_by is None
 
 
 def read_note(repo_root: Path, key: str) -> tuple[Note, str, Path]:

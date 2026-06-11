@@ -209,9 +209,26 @@ def add(
             tags=tag_list,
             references=refs_list,
         )
+    _warn_duplicate_topic(repo_root, note)
     path = write_note(repo_root, note, body_text)
     rebuild_index(repo_root)
     console.print(f"[green]wrote[/green] {path.relative_to(repo_root)}  id={note.id}")
+
+
+def _warn_duplicate_topic(repo_root: Path, note: Note) -> None:
+    """Warn when another ACTIVE note already owns this topic.
+
+    Sharing a slug with superseded ancestors is normal; two live notes on one
+    slug makes topic lookup ambiguous and usually means the author wanted
+    `supersede`. Warn, don't block — the gate blocks lies, not style.
+    """
+    for other, _p in list_notes(repo_root):
+        if other.id != note.id and other.topic == note.topic and other.superseded_by is None:
+            err_console.print(
+                f"[yellow]warning[/yellow]: topic {note.topic!r} already exists as note "
+                f"{other.id}; consider `fieldnotes supersede {other.id}` (created anyway)"
+            )
+            return
 
 
 def _note_from_draft(
@@ -931,10 +948,22 @@ def for_cmd(
     table.add_column("id", style="cyan")
     table.add_column("topic")
     table.add_column("title")
+    table.add_column("pin")
     table.add_column("conf")
     for n, _p in hits:
-        table.add_row(n.id, n.topic, n.title, n.confidence.value)
+        table.add_row(n.id, n.topic, n.title, _pins_for(repo_root, n, path), n.confidence.value)
     console.print(table)
+
+
+def _pins_for(repo_root: Path, note: Note, target: str) -> str:
+    """How this note pins `target` — 'lines 12-84', 'symbol foo', 'whole file'."""
+    rel = to_repo_relative(repo_root, target)
+    descs = [
+        pin_descriptor(ref)
+        for ref in note.references
+        if to_repo_relative(repo_root, ref.path) == rel
+    ]
+    return ", ".join(descs)
 
 
 @app.command()
@@ -1057,10 +1086,10 @@ def touched(
     if not hits:
         return
     rel = to_repo_relative(repo_root, target)
-    titles = ", ".join(f"{n.id} ({n.topic})" for n, _ in hits[:5])
+    claims = "; ".join(f"{n.id} {n.title} ({_pins_for(repo_root, n, rel)})" for n, _ in hits[:5])
     n_word = "note" if len(hits) == 1 else "notes"
     console.print(
-        f"fieldnotes: {len(hits)} {n_word} reference {rel} — {titles}. May need updating."
+        f"fieldnotes: {len(hits)} {n_word} reference {rel} — {claims}. May need updating."
     )
 
 

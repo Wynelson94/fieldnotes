@@ -18,7 +18,7 @@ class SearchHit:
 
 
 def search(repo_root: Path, query: str, *, context: int = 40) -> list[SearchHit]:
-    """Case-insensitive substring search over titles and bodies."""
+    """Case-insensitive substring search over titles, topics, tags, and bodies."""
     q = query.strip().lower()
     if not q:
         return []
@@ -28,7 +28,11 @@ def search(repo_root: Path, query: str, *, context: int = 40) -> list[SearchHit]
             note, body = parse_note_file(path)
         except Exception:
             continue
-        title_match = q in note.title.lower()
+        title_match = (
+            q in note.title.lower()
+            or q in note.topic.lower()
+            or any(q in t.lower() for t in note.tags)
+        )
         body_matches = _excerpts(body, q, context=context)
         if title_match or body_matches:
             hits.append(

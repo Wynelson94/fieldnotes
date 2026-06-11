@@ -29,8 +29,9 @@ class TestTouched:
         result = runner.invoke(app, ["touched", "src/a.py", "--repo", str(repo)])
         assert result.exit_code == 0
         assert "0001" in result.output
-        assert "About a" not in result.output  # we use topic, not title
-        assert "(a)" in result.output
+        # v0.11: the title IS the claim — surface it, with the pin descriptor.
+        assert "About a" in result.output
+        assert "whole file" in result.output
 
     def test_silent_on_no_match(self, repo: Path):
         result = runner.invoke(app, ["touched", "src/missing.py", "--repo", str(repo)])

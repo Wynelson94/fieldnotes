@@ -4,8 +4,8 @@ id: '0007'
 references:
 - advisory: false
   lines:
-  - 302
-  - 335
+  - 319
+  - 352
   path: fieldnotes/cli.py
   pinned_at: null
   sha: 9d8fde0b8d94183e2994a4663718b6425991632414e36e04cb2c35be0e37c9df
