@@ -89,6 +89,25 @@ class Reference(BaseModel):
         return v
 
 
+class Validation(BaseModel):
+    """One recorded act of a reader re-validating a note's claim.
+
+    A re-pin fixes the SHA; only a reader can validate the prose. The ledger
+    makes that act durable — a note that has held under repeated re-reads is
+    visibly more trustworthy than one that was never checked.
+    """
+
+    at: datetime
+    by: str = "unknown"
+
+    @field_validator("at")
+    @classmethod
+    def _at_tz(cls, v: datetime) -> datetime:
+        if v.tzinfo is None:
+            return v.replace(tzinfo=timezone.utc)
+        return v
+
+
 class Note(BaseModel):
     """A single fieldnote."""
 
@@ -103,6 +122,7 @@ class Note(BaseModel):
     references: list[Reference] = Field(default_factory=list)
     supersedes: str | None = None
     superseded_by: str | None = None
+    validations: list[Validation] = Field(default_factory=list)
 
     @field_validator("id")
     @classmethod

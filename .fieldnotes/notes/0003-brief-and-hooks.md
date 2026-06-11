@@ -11,8 +11,8 @@ references:
 - advisory: false
   lines: null
   path: fieldnotes/cli.py
-  pinned_at: '2026-06-11T17:54:48.147437Z'
-  sha: 9795ceaa2f8725d2e43a17a9b6a2f0a4c7bf6aa85ee05aea3b6b6ad67a016b28
+  pinned_at: '2026-06-11T18:19:09.249169Z'
+  sha: 84a807f34fbd2e21e211796addb59496daad48d1f315eafe317442e1ceebb935
   symbol: null
 session_id: null
 superseded_by: null
@@ -24,6 +24,7 @@ tags:
 - session-start
 title: How `brief` is meant to be wired (SessionStart hook)
 topic: brief-and-hooks
+validations: []
 written_at: '2026-04-25T04:08:18.868077Z'
 written_by: claude-opus-4-7
 ---

@@ -5,8 +5,8 @@ references:
 - advisory: false
   lines: null
   path: fieldnotes/cli.py
-  pinned_at: '2026-06-11T17:54:48.146743Z'
-  sha: 9795ceaa2f8725d2e43a17a9b6a2f0a4c7bf6aa85ee05aea3b6b6ad67a016b28
+  pinned_at: '2026-06-11T18:19:09.248255Z'
+  sha: 84a807f34fbd2e21e211796addb59496daad48d1f315eafe317442e1ceebb935
   symbol: null
 - advisory: true
   lines: null
@@ -22,6 +22,7 @@ tags:
 - typer
 title: How the fieldnotes CLI is wired
 topic: cli-entry-points
+validations: []
 written_at: '2026-04-25T03:51:37.089950Z'
 written_by: claude-opus-4-7
 ---

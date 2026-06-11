@@ -11,8 +11,8 @@ references:
 - advisory: false
   lines: null
   path: fieldnotes/models.py
-  pinned_at: '2026-06-11T17:42:30.697420Z'
-  sha: b0659fb01c4408cb14fffd91d8119aad2fa196ba86aed8671a997f996aabfc77
+  pinned_at: '2026-06-11T18:19:09.248850Z'
+  sha: 38bd65981174336b1bfc886ab80f9f54518f986dfaf6b3ce68abe41cc3c3c986
   symbol: null
 session_id: null
 superseded_by: null
@@ -23,6 +23,7 @@ tags:
 - drift
 title: How drift detection works
 topic: sha-pinning
+validations: []
 written_at: '2026-04-25T03:51:37.186973Z'
 written_by: claude-opus-4-7
 ---

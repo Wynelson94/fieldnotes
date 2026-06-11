@@ -21,7 +21,7 @@ from fieldnotes.diffcmd import diff_note, is_git_repo, pin_descriptor
 from fieldnotes.doctor import run_diagnostics
 from fieldnotes.githook import git_hook_installed, git_toplevel, install_git_hook
 from fieldnotes.index import rebuild_index
-from fieldnotes.models import SYMBOL_RE, Confidence, Note, Reference
+from fieldnotes.models import SYMBOL_RE, Confidence, Note, Reference, Validation
 from fieldnotes.search import search as do_search
 from fieldnotes.store import (
     AmbiguousNoteSelectorError,
@@ -452,11 +452,61 @@ def get(
     """Print a single note."""
     repo_root = _resolve_repo(repo)
     try:
-        _note, _body, path = read_note(repo_root, key)
+        note, _body, path = read_note(repo_root, key)
     except (NoteNotFoundError, AmbiguousNoteSelectorError) as exc:
         err_console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from exc
     console.print(path.read_text())
+    console.print(f"[dim]{_ledger_summary(note)}[/dim]")
+
+
+def _ledger_summary(note: Note) -> str:
+    """`confidence` is the author's prior; the ledger is accumulated evidence.
+
+    Rendered together so both fields carry meaning: a `speculation` confirmed
+    three times outranks a `high` that nobody ever re-read.
+    """
+    if not note.validations:
+        return f"confidence {note.confidence.value} — never re-validated"
+    last = max(note.validations, key=lambda v: v.at)
+    return (
+        f"confidence {note.confidence.value} — validated {len(note.validations)}× "
+        f"(last {last.at.date().isoformat()} by {last.by})"
+    )
+
+
+@app.command()
+def confirm(
+    key: Annotated[str, typer.Argument(help="Note id (e.g. '0001' or '1') or topic slug.")],
+    by: Annotated[
+        str,
+        typer.Option("--by", help="Who re-validated the claim — e.g. 'claude-fable-5'."),
+    ] = "unknown",
+    repo: RepoOpt = None,
+) -> None:
+    """Record that you re-read this note against current code and the claim holds.
+
+    A re-pin fixes the SHA; only a reader can validate the prose. Refuses
+    stale notes — confirm against current pins, not over drift (run
+    `fieldnotes verify --update` first).
+    """
+    repo_root = _resolve_repo(repo)
+    try:
+        note, body, _path = read_note(repo_root, key)
+    except (NoteNotFoundError, AmbiguousNoteSelectorError) as exc:
+        err_console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=2) from exc
+    status = check_note(repo_root, note, _path)
+    if status.is_stale:
+        err_console.print(
+            f"[red]note {note.id} is stale — confirm validates the claim against "
+            "current pins.[/red] Heal first: fieldnotes verify --update, re-read, "
+            "then confirm."
+        )
+        raise typer.Exit(code=1)
+    note.validations.append(Validation(at=datetime.now(timezone.utc), by=by))
+    write_note(repo_root, note, body)
+    console.print(f"[green]confirmed[/green] {note.id} ({note.topic}) — {_ledger_summary(note)}")
 
 
 def _print_gate_tip(repo_root: Path) -> None:
@@ -632,6 +682,10 @@ def verify(
             )
             for s, paths in review:
                 console.print(f"  {s.note.id} ({s.note.topic}): {', '.join(paths)}")
+            console.print(
+                "  [dim]after re-reading, record that the claim holds: "
+                "fieldnotes confirm <id>[/dim]"
+            )
 
     for s in stale if not update else []:
         console.print(
