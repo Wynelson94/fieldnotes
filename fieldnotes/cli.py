@@ -37,7 +37,13 @@ from fieldnotes.store import (
     write_note,
 )
 from fieldnotes.symbols import resolve_symbol
-from fieldnotes.verify import RebaseResult, check_note, compute_range_sha, update_shas
+from fieldnotes.verify import (
+    NoteStatus,
+    RebaseResult,
+    check_note,
+    compute_range_sha,
+    update_shas,
+)
 
 app = typer.Typer(
     add_completion=False,
@@ -427,6 +433,33 @@ def get(
     console.print(path.read_text())
 
 
+def _changed_refs(status: NoteStatus, rebase_results: list[RebaseResult]) -> list[str]:
+    """The note's stale refs whose pinned content *changed* rather than moved.
+
+    A moved range (rebased/ambiguous) keeps its SHA — the claim is untouched.
+    Everything else stale got re-pinned over different content, so the note's
+    prose needs a human (or Claude) re-read before the re-pin can be trusted.
+    """
+    moved = {
+        (r.ref_path, tuple(r.original_lines or []))
+        for r in rebase_results
+        if r.outcome in ("rebased", "ambiguous")
+    }
+    changed: list[str] = []
+    for r in status.references:
+        if r.state != "stale":
+            continue
+        if (r.reference.path, tuple(r.reference.lines or [])) in moved:
+            continue
+        if r.reference.symbol is not None and r.actual_sha is None:
+            changed.append(
+                f"{r.reference.path} (symbol '{r.reference.symbol}' no longer resolves — not re-pinned)"
+            )
+        else:
+            changed.append(r.reference.path)
+    return changed
+
+
 @app.command()
 def verify(
     update: Annotated[
@@ -434,12 +467,14 @@ def verify(
         typer.Option("--update", help="Re-pin SHAs to current values for stale references."),
     ] = False,
     rebase: Annotated[
-        bool,
+        bool | None,
         typer.Option(
-            "--rebase",
-            help="Relocate stale line-range pins by SHA before re-pinning, so pins follow code that moved within a file. Implies --update.",
+            "--rebase/--no-rebase",
+            help="Relocate stale line-range pins by SHA before re-pinning, so pins follow "
+            "code that moved within a file. On by default when updating; --rebase alone "
+            "implies --update.",
         ),
-    ] = False,
+    ] = None,
     check: Annotated[
         bool,
         typer.Option(
@@ -456,24 +491,32 @@ def verify(
 ) -> None:
     """Recompute SHAs and report drift."""
     # --rebase alone used to be a silent no-op; relocating without re-pinning
-    # has no meaning, so it implies --update.
-    update = update or rebase
+    # has no meaning, so an explicit --rebase implies --update. When updating,
+    # rebase is on unless --no-rebase opts out.
+    update = update or rebase is True
+    do_rebase = rebase if rebase is not None else True
     repo_root = _resolve_repo(repo)
     rows = list_notes(repo_root)
     statuses = [check_note(repo_root, n, p) for (n, p) in rows]
     stale = [s for s in statuses if s.is_stale]
 
     rebase_results: list[RebaseResult] = []
+    review: list[tuple[NoteStatus, list[str]]] = []
     if update and stale:
         for s in stale:
+            note_results: list[RebaseResult] = []
             new_note = update_shas(
                 s.note,
                 s.references,
-                repo_root=repo_root if rebase else None,
-                rebase=rebase,
-                rebase_results=rebase_results if rebase else None,
+                repo_root=repo_root if do_rebase else None,
+                rebase=do_rebase,
+                rebase_results=note_results if do_rebase else None,
             )
             write_note(repo_root, new_note, parse_note_file(s.path)[1])
+            rebase_results.extend(note_results)
+            changed = _changed_refs(s, note_results)
+            if changed:
+                review.append((s, changed))
         rebuild_index(repo_root)
 
     should_fail = check and bool(stale) and not update
@@ -521,6 +564,13 @@ def verify(
                 console.print(
                     f"  [yellow]warning[/yellow] {r.ref_path}: original content no longer present at any line range; pinned in place at {r.original_lines}"
                 )
+        if review:
+            console.print(
+                "[bold yellow]re-read these notes[/bold yellow] — pinned content changed "
+                "(not just moved); confirm the claims still hold:"
+            )
+            for s, paths in review:
+                console.print(f"  {s.note.id} ({s.note.topic}): {', '.join(paths)}")
 
     for s in stale if not update else []:
         console.print(
