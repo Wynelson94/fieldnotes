@@ -81,9 +81,7 @@ def _command_uses_binary(command: str, expected_binary: str | None) -> bool:
     return head == "fieldnotes" or head.endswith("/fieldnotes")
 
 
-def check_hooks(
-    settings_path: Path, expected_binary: str | None
-) -> list[CheckResult]:
+def check_hooks(settings_path: Path, expected_binary: str | None) -> list[CheckResult]:
     if not settings_path.exists():
         return [
             CheckResult(
@@ -150,10 +148,7 @@ def check_hooks(
                 CheckResult(
                     name=f"{event} hook",
                     ok=False,
-                    detail=(
-                        f"present, but command uses {head!r} "
-                        f"(expected {expected_binary!r})"
-                    ),
+                    detail=(f"present, but command uses {head!r} (expected {expected_binary!r})"),
                     fix=(
                         "Re-run `fieldnotes install-hooks --apply` to update the "
                         "path to the currently-installed binary."

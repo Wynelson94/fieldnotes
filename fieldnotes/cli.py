@@ -654,9 +654,7 @@ def supersede(
 
 @app.command(name="for")
 def for_cmd(
-    path: Annotated[
-        str, typer.Argument(help="File path (relative to repo root, or absolute).")
-    ],
+    path: Annotated[str, typer.Argument(help="File path (relative to repo root, or absolute).")],
     json_out: Annotated[bool, typer.Option("--json", help="Emit JSON.")] = False,
     repo: RepoOpt = None,
 ) -> None:
@@ -716,18 +714,14 @@ def brief(
         for path, hits in b.by_recent_path:
             console.print(f"    [cyan]{path}[/cyan]")
             for n, _p in hits:
-                console.print(
-                    f"      · {n.id} {n.title}  [dim]({n.confidence.value})[/dim]"
-                )
+                console.print(f"      · {n.id} {n.title}  [dim]({n.confidence.value})[/dim]")
 
 
 @app.command()
 def touched(
     path: Annotated[
         str | None,
-        typer.Argument(
-            help="File path. Omit to read the PostToolUse JSON payload from stdin."
-        ),
+        typer.Argument(help="File path. Omit to read the PostToolUse JSON payload from stdin."),
     ] = None,
     stdin_payload: Annotated[
         bool,
@@ -756,9 +750,7 @@ def touched(
         return
 
     try:
-        repo_root = find_repo_root(
-            Path(repo) if repo is not None else Path.cwd()
-        )
+        repo_root = find_repo_root(Path(repo) if repo is not None else Path.cwd())
     except RepoNotInitializedError:
         return
     hits = notes_referencing(repo_root, target)
@@ -885,8 +877,7 @@ def install_hooks(
 
     if not apply:
         console.print(
-            "[bold]fieldnotes hooks[/bold]  "
-            "(rerun with --apply to write to your settings.json)"
+            "[bold]fieldnotes hooks[/bold]  (rerun with --apply to write to your settings.json)"
         )
         console.print()
         console.print_json(data=snippet)
@@ -962,9 +953,7 @@ def install_git_hook_cmd(
         )
         raise typer.Exit(code=1)
     if result.status == "unchanged":
-        console.print(
-            f"[dim]gate already installed at {result.hook_path} — nothing changed[/dim]"
-        )
+        console.print(f"[dim]gate already installed at {result.hook_path} — nothing changed[/dim]")
         return
     verb = "installed" if result.status == "installed" else "refreshed"
     console.print(f"[green]{verb}[/green] the fieldnotes pre-commit gate at {result.hook_path}")
@@ -999,5 +988,3 @@ def doctor(
             console.print(f"  [yellow]{c.name}[/yellow]: {c.fix}")
     if not report.all_ok:
         raise typer.Exit(code=1)
-
-

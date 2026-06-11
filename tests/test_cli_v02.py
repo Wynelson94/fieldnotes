@@ -40,17 +40,25 @@ class TestForCommand:
     def test_finds_notes(self, repo: Path):
         _add(
             repo,
-            "--topic", "a",
-            "--title", "About a",
-            "--body", "x",
-            "--refs", "src/a.py",
+            "--topic",
+            "a",
+            "--title",
+            "About a",
+            "--body",
+            "x",
+            "--refs",
+            "src/a.py",
         )
         _add(
             repo,
-            "--topic", "b",
-            "--title", "About b",
-            "--body", "x",
-            "--refs", "src/b.py",
+            "--topic",
+            "b",
+            "--title",
+            "About b",
+            "--body",
+            "x",
+            "--refs",
+            "src/b.py",
         )
         result = runner.invoke(app, ["for", "src/a.py", "--repo", str(repo)])
         assert result.exit_code == 0
@@ -64,9 +72,7 @@ class TestForCommand:
 
     def test_json_out(self, repo: Path):
         _add(repo, "--topic", "a", "--title", "T", "--body", "x", "--refs", "src/a.py")
-        result = runner.invoke(
-            app, ["for", "src/a.py", "--json", "--repo", str(repo)]
-        )
+        result = runner.invoke(app, ["for", "src/a.py", "--json", "--repo", str(repo)])
         data = json.loads(result.output)
         assert len(data) == 1
         assert data[0]["topic"] == "a"
@@ -100,9 +106,7 @@ class TestAddFromDraft:
                 """
             )
         )
-        result = runner.invoke(
-            app, ["add", "--from", str(draft), "--repo", str(repo)]
-        )
+        result = runner.invoke(app, ["add", "--from", str(draft), "--repo", str(repo)])
         assert result.exit_code == 0, result.output
         files = list(notes_dir(repo).iterdir())
         assert any("my-topic" in f.name for f in files)

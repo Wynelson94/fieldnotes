@@ -62,9 +62,7 @@ def init_repo(repo_root: Path) -> Path:
     fn.mkdir(parents=True, exist_ok=True)
     notes_dir(repo_root).mkdir(exist_ok=True)
     if not config_path(repo_root).exists():
-        config_path(repo_root).write_text(
-            '# fieldnotes config\nversion = "0.1"\n'
-        )
+        config_path(repo_root).write_text('# fieldnotes config\nversion = "0.1"\n')
     if not index_path(repo_root).exists():
         index_path(repo_root).write_text(_empty_index_text())
     return fn
@@ -173,9 +171,7 @@ def to_repo_relative(repo_root: Path, p: Path | str) -> str:
     return s
 
 
-def notes_referencing(
-    repo_root: Path, target: Path | str
-) -> list[tuple[Note, Path]]:
+def notes_referencing(repo_root: Path, target: Path | str) -> list[tuple[Note, Path]]:
     """Return notes whose references include `target`, repo-relative match."""
     rel = to_repo_relative(repo_root, target)
     out: list[tuple[Note, Path]] = []

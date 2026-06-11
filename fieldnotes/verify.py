@@ -92,9 +92,7 @@ def check_reference(repo_root: Path, ref: Reference) -> ReferenceStatus:
         resolved = resolve_symbol(target, ref.symbol)
         if resolved is None:
             # Symbol gone (renamed, deleted, or unparseable) — count as stale.
-            return ReferenceStatus(
-                reference=ref, state="stale", actual_sha=None, actual_lines=None
-            )
+            return ReferenceStatus(reference=ref, state="stale", actual_sha=None, actual_lines=None)
         effective_lines = list(resolved)
         actual_lines = effective_lines
 
@@ -119,9 +117,7 @@ def check_note(repo_root: Path, note: Note, path: Path) -> NoteStatus:
     return NoteStatus(note=note, path=path, references=statuses)
 
 
-def find_moved_range(
-    path: Path, target_sha: str, range_size: int
-) -> list[tuple[int, int]]:
+def find_moved_range(path: Path, target_sha: str, range_size: int) -> list[tuple[int, int]]:
     """Find every 1-indexed [start, end] line range in `path` whose contents
     hash to `target_sha`. Used by --rebase to locate where a previously-pinned
     block of code ended up after a refactor moved it within the same file.
@@ -205,9 +201,7 @@ def update_shas(
                     new_start, new_end = matches[0]
                     outcome = "rebased"
                 else:
-                    new_start, new_end = min(
-                        matches, key=lambda m: abs(m[0] - ref.lines[0])
-                    )
+                    new_start, new_end = min(matches, key=lambda m: abs(m[0] - ref.lines[0]))
                     outcome = "ambiguous"
                 if rebase_results is not None:
                     rebase_results.append(

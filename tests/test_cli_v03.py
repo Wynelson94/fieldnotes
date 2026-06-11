@@ -26,25 +26,19 @@ class TestTouched:
             ),
             "body",
         )
-        result = runner.invoke(
-            app, ["touched", "src/a.py", "--repo", str(repo)]
-        )
+        result = runner.invoke(app, ["touched", "src/a.py", "--repo", str(repo)])
         assert result.exit_code == 0
         assert "0001" in result.output
         assert "About a" not in result.output  # we use topic, not title
         assert "(a)" in result.output
 
     def test_silent_on_no_match(self, repo: Path):
-        result = runner.invoke(
-            app, ["touched", "src/missing.py", "--repo", str(repo)]
-        )
+        result = runner.invoke(app, ["touched", "src/missing.py", "--repo", str(repo)])
         assert result.exit_code == 0
         assert result.output.strip() == ""
 
     def test_silent_when_uninitialized(self, tmp_path: Path):
-        result = runner.invoke(
-            app, ["touched", "src/x.py", "--repo", str(tmp_path)]
-        )
+        result = runner.invoke(app, ["touched", "src/x.py", "--repo", str(tmp_path)])
         assert result.exit_code == 0
         assert result.output.strip() == ""
 
@@ -133,9 +127,7 @@ class TestInstallHooks:
 
     def test_apply_creates_file(self, tmp_path: Path):
         target = tmp_path / "settings.json"
-        result = runner.invoke(
-            app, ["install-hooks", "--bare", "--apply", "--to", str(target)]
-        )
+        result = runner.invoke(app, ["install-hooks", "--bare", "--apply", "--to", str(target)])
         assert result.exit_code == 0
         assert target.exists()
         data = json.loads(target.read_text())
@@ -147,9 +139,7 @@ class TestInstallHooks:
         target = tmp_path / "settings.json"
         runner.invoke(app, ["install-hooks", "--bare", "--apply", "--to", str(target)])
         before = target.read_text()
-        result = runner.invoke(
-            app, ["install-hooks", "--bare", "--apply", "--to", str(target)]
-        )
+        result = runner.invoke(app, ["install-hooks", "--bare", "--apply", "--to", str(target)])
         assert result.exit_code == 0
         assert "nothing changed" in result.output or "already present" in result.output
         assert target.read_text() == before
@@ -157,9 +147,7 @@ class TestInstallHooks:
     def test_apply_preserves_existing_unrelated(self, tmp_path: Path):
         target = tmp_path / "settings.json"
         target.write_text(json.dumps({"theme": "dark", "hooks": {}}))
-        result = runner.invoke(
-            app, ["install-hooks", "--bare", "--apply", "--to", str(target)]
-        )
+        result = runner.invoke(app, ["install-hooks", "--bare", "--apply", "--to", str(target)])
         assert result.exit_code == 0
         data = json.loads(target.read_text())
         assert data["theme"] == "dark"
@@ -168,17 +156,13 @@ class TestInstallHooks:
     def test_apply_handles_malformed_settings(self, tmp_path: Path):
         target = tmp_path / "settings.json"
         target.write_text("{ this is not json")
-        result = runner.invoke(
-            app, ["install-hooks", "--bare", "--apply", "--to", str(target)]
-        )
+        result = runner.invoke(app, ["install-hooks", "--bare", "--apply", "--to", str(target)])
         assert result.exit_code == 1
         assert "could not parse" in result.output
 
     def test_apply_creates_parent_dirs(self, tmp_path: Path):
         target = tmp_path / "deep" / "nested" / "settings.json"
-        result = runner.invoke(
-            app, ["install-hooks", "--bare", "--apply", "--to", str(target)]
-        )
+        result = runner.invoke(app, ["install-hooks", "--bare", "--apply", "--to", str(target)])
         assert result.exit_code == 0
         assert target.exists()
 
@@ -217,9 +201,7 @@ class TestInstallHooksAbsolute:
         # Even when which would fail, --bare succeeds.
         monkeypatch.setattr("fieldnotes.cli.shutil.which", lambda _: None)
         target = tmp_path / "settings.json"
-        result = runner.invoke(
-            app, ["install-hooks", "--bare", "--apply", "--to", str(target)]
-        )
+        result = runner.invoke(app, ["install-hooks", "--bare", "--apply", "--to", str(target)])
         assert result.exit_code == 0
         data = json.loads(target.read_text())
         cmd = data["hooks"]["SessionStart"][0]["hooks"][0]["command"]

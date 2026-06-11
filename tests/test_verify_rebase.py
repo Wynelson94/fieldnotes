@@ -152,9 +152,7 @@ class TestUpdateShasRebase:
         status = check_note(repo, n, path)
         assert status.is_stale
         results: list[RebaseResult] = []
-        update_shas(
-            n, status.references, repo_root=repo, rebase=True, rebase_results=results
-        )
+        update_shas(n, status.references, repo_root=repo, rebase=True, rebase_results=results)
         assert results[0].outcome in {"rebased", "ambiguous"}
         # Only one match remains (lines 1-3); should land there.
         assert results[0].new_lines == [1, 3]

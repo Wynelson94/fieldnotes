@@ -23,9 +23,16 @@ def _add_note_pinning(repo: Path, rel: str) -> None:
         app,
         [
             "add",
-            "--topic", "t", "--title", "T", "--body", "b",
-            "--refs", rel,
-            "--repo", str(repo),
+            "--topic",
+            "t",
+            "--title",
+            "T",
+            "--body",
+            "b",
+            "--refs",
+            rel,
+            "--repo",
+            str(repo),
         ],
     )
     assert result.exit_code == 0, result.output
@@ -59,9 +66,7 @@ class TestVerifyCheck:
     def test_quiet_suppresses_all_clear(self, repo: Path):
         (repo / "f.txt").write_text("hello\n")
         _add_note_pinning(repo, "f.txt")
-        result = runner.invoke(
-            app, ["verify", "--check", "--quiet", "--repo", str(repo)]
-        )
+        result = runner.invoke(app, ["verify", "--check", "--quiet", "--repo", str(repo)])
         assert result.exit_code == 0
         assert "verified" not in result.output
 
@@ -69,9 +74,7 @@ class TestVerifyCheck:
         (repo / "f.txt").write_text("hello\n")
         _add_note_pinning(repo, "f.txt")
         (repo / "f.txt").write_text("changed\n")
-        result = runner.invoke(
-            app, ["verify", "--check", "--quiet", "--repo", str(repo)]
-        )
+        result = runner.invoke(app, ["verify", "--check", "--quiet", "--repo", str(repo)])
         assert result.exit_code == 1
         assert "stale" in result.output
 
@@ -79,18 +82,14 @@ class TestVerifyCheck:
         (repo / "f.txt").write_text("hello\n")
         _add_note_pinning(repo, "f.txt")
         (repo / "f.txt").write_text("changed\n")
-        result = runner.invoke(
-            app, ["verify", "--check", "--json", "--repo", str(repo)]
-        )
+        result = runner.invoke(app, ["verify", "--check", "--json", "--repo", str(repo)])
         assert result.exit_code == 1
         assert '"stale": true' in result.output
 
 
 class TestInstallGitHookCommand:
     def test_installs_in_git_repo(self, git_repo: Path):
-        result = runner.invoke(
-            app, ["install-git-hook", "--bare", "--repo", str(git_repo)]
-        )
+        result = runner.invoke(app, ["install-git-hook", "--bare", "--repo", str(git_repo)])
         assert result.exit_code == 0, result.output
         hook = git_repo / ".git" / "hooks" / "pre-commit"
         assert hook.exists()
@@ -98,17 +97,13 @@ class TestInstallGitHookCommand:
 
     def test_idempotent(self, git_repo: Path):
         runner.invoke(app, ["install-git-hook", "--bare", "--repo", str(git_repo)])
-        result = runner.invoke(
-            app, ["install-git-hook", "--bare", "--repo", str(git_repo)]
-        )
+        result = runner.invoke(app, ["install-git-hook", "--bare", "--repo", str(git_repo)])
         assert result.exit_code == 0
         assert "already installed" in result.output
 
     def test_fails_in_non_git_repo(self, repo: Path):
         # `repo` has .fieldnotes/ but is not a git repo.
-        result = runner.invoke(
-            app, ["install-git-hook", "--bare", "--repo", str(repo)]
-        )
+        result = runner.invoke(app, ["install-git-hook", "--bare", "--repo", str(repo)])
         assert result.exit_code == 1
 
 
@@ -141,16 +136,16 @@ class TestEndToEndCommitGate:
 
         (git_repo / "f.txt").write_text("hello\n")
         _add_note_pinning(git_repo, "f.txt")
-        installed = runner.invoke(
-            app, ["install-git-hook", "--repo", str(git_repo)]
-        )
+        installed = runner.invoke(app, ["install-git-hook", "--repo", str(git_repo)])
         assert installed.exit_code == 0, installed.output
 
         # A clean commit (pinned file unchanged) passes the gate.
         subprocess.run(["git", "add", "-A"], cwd=git_repo, check=True)
         clean = subprocess.run(
             ["git", "commit", "-m", "initial"],
-            cwd=git_repo, capture_output=True, text=True,
+            cwd=git_repo,
+            capture_output=True,
+            text=True,
         )
         assert clean.returncode == 0, clean.stderr
 
@@ -159,6 +154,8 @@ class TestEndToEndCommitGate:
         subprocess.run(["git", "add", "-A"], cwd=git_repo, check=True)
         blocked = subprocess.run(
             ["git", "commit", "-m", "should fail"],
-            cwd=git_repo, capture_output=True, text=True,
+            cwd=git_repo,
+            capture_output=True,
+            text=True,
         )
         assert blocked.returncode != 0, "commit should have been blocked by the gate"

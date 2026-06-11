@@ -38,12 +38,18 @@ class TestAddAndGet:
     def test_add_writes_note_and_index(self, repo: Path):
         result = _run(
             "add",
-            "--topic", "cli-entry-points",
-            "--title", "How the CLI is wired",
-            "--body", "The CLI is in fieldnotes/cli.py",
-            "--tags", "cli,typer",
-            "--confidence", "high",
-            "--written-by", "claude-opus-4-7",
+            "--topic",
+            "cli-entry-points",
+            "--title",
+            "How the CLI is wired",
+            "--body",
+            "The CLI is in fieldnotes/cli.py",
+            "--tags",
+            "cli,typer",
+            "--confidence",
+            "high",
+            "--written-by",
+            "claude-opus-4-7",
             repo=repo,
         )
         assert result.exit_code == 0, result.output
@@ -55,7 +61,13 @@ class TestAddAndGet:
 
     def test_get_by_id_and_by_topic(self, repo: Path):
         _run(
-            "add", "--topic", "x", "--title", "Hello", "--body", "world content",
+            "add",
+            "--topic",
+            "x",
+            "--title",
+            "Hello",
+            "--body",
+            "world content",
             repo=repo,
         )
         r1 = _run("get", "1", repo=repo)
@@ -68,10 +80,14 @@ class TestAddAndGet:
         rel = sample_source.relative_to(repo).as_posix()
         result = _run(
             "add",
-            "--topic", "ref-test",
-            "--title", "Ref test",
-            "--body", "body",
-            "--refs", rel,
+            "--topic",
+            "ref-test",
+            "--title",
+            "Ref test",
+            "--body",
+            "body",
+            "--refs",
+            rel,
             repo=repo,
         )
         assert result.exit_code == 0, result.output
@@ -159,8 +175,12 @@ class TestSupersede:
     def test_creates_new_and_marks_old(self, repo: Path):
         _run("add", "--topic", "x", "--title", "Old", "--body", "old body", repo=repo)
         result = _run(
-            "supersede", "1",
-            "--title", "New", "--body", "new body",
+            "supersede",
+            "1",
+            "--title",
+            "New",
+            "--body",
+            "new body",
             repo=repo,
         )
         assert result.exit_code == 0, result.output

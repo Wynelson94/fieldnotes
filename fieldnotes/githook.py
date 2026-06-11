@@ -124,9 +124,7 @@ def install_git_hook(repo_root: Path, binary: str) -> GitHookResult:
     """
     top = git_toplevel(repo_root)
     if top is None:
-        return GitHookResult(
-            "not-a-git-repo", None, f"{repo_root} is not inside a git repository"
-        )
+        return GitHookResult("not-a-git-repo", None, f"{repo_root} is not inside a git repository")
     hook_path = effective_hooks_dir(top) / "pre-commit"
     script = build_hook_script(binary)
 

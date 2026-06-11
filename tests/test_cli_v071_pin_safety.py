@@ -28,9 +28,16 @@ class TestSymbolOnNonPythonFile:
             app,
             [
                 "add",
-                "--topic", "x", "--title", "T", "--body", "b",
-                "--refs", "src/auth.ts:requireOwnership",
-                "--repo", str(repo),
+                "--topic",
+                "x",
+                "--title",
+                "T",
+                "--body",
+                "b",
+                "--refs",
+                "src/auth.ts:requireOwnership",
+                "--repo",
+                str(repo),
             ],
         )
         assert result.exit_code == 0, result.output
@@ -52,9 +59,16 @@ class TestSymbolOnNonPythonFile:
             app,
             [
                 "add",
-                "--topic", "x", "--title", "T", "--body", "b",
-                "--refs", "src/thing.py:nonexistent",
-                "--repo", str(repo),
+                "--topic",
+                "x",
+                "--title",
+                "T",
+                "--body",
+                "b",
+                "--refs",
+                "src/thing.py:nonexistent",
+                "--repo",
+                str(repo),
             ],
         )
         assert result.exit_code == 0, result.output
@@ -74,7 +88,8 @@ class TestSymbolOnNonPythonFileViaDraft:
         src.write_text("export function f() {}\n")
 
         draft = tmp_path / "draft.md"
-        draft.write_text(dedent("""\
+        draft.write_text(
+            dedent("""\
             ---
             topic: x
             title: T
@@ -87,7 +102,8 @@ class TestSymbolOnNonPythonFileViaDraft:
             ---
 
             body
-        """))
+        """)
+        )
 
         result = runner.invoke(
             app,
@@ -118,9 +134,16 @@ class TestDirectoryRef:
             app,
             [
                 "add",
-                "--topic", "x", "--title", "T", "--body", "b",
-                "--refs", "supabase/migrations,ok.txt",
-                "--repo", str(repo),
+                "--topic",
+                "x",
+                "--title",
+                "T",
+                "--body",
+                "b",
+                "--refs",
+                "supabase/migrations,ok.txt",
+                "--repo",
+                str(repo),
             ],
         )
         assert result.exit_code == 0, result.output
@@ -138,7 +161,8 @@ class TestDirectoryRef:
         valid.write_text("hello\n")
 
         draft = tmp_path / "draft.md"
-        draft.write_text(dedent("""\
+        draft.write_text(
+            dedent("""\
             ---
             topic: x
             title: T
@@ -151,7 +175,8 @@ class TestDirectoryRef:
             ---
 
             body
-        """))
+        """)
+        )
 
         result = runner.invoke(
             app,

@@ -105,9 +105,7 @@ class Note(BaseModel):
     def _topic_slug(cls, v: str) -> str:
         v = v.strip().lower()
         if not SLUG_RE.fullmatch(v):
-            raise ValueError(
-                "topic must be kebab-case (lowercase letters, digits, single hyphens)"
-            )
+            raise ValueError("topic must be kebab-case (lowercase letters, digits, single hyphens)")
         return v
 
     @field_validator("title")

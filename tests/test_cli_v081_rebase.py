@@ -29,9 +29,16 @@ class TestRebaseImpliesUpdate:
             app,
             [
                 "add",
-                "--topic", "t", "--title", "T", "--body", "b",
-                "--refs", "f.py:2-3",
-                "--repo", str(repo),
+                "--topic",
+                "t",
+                "--title",
+                "T",
+                "--body",
+                "b",
+                "--refs",
+                "f.py:2-3",
+                "--repo",
+                str(repo),
             ],
         )
         assert result.exit_code == 0, result.output

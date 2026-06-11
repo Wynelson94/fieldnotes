@@ -11,7 +11,8 @@ from fieldnotes.symbols import resolve_symbol
 class TestResolveSymbol:
     def test_top_level_function(self, tmp_path: Path):
         p = tmp_path / "x.py"
-        p.write_text(dedent("""\
+        p.write_text(
+            dedent("""\
             import os
 
             def my_func():
@@ -20,39 +21,46 @@ class TestResolveSymbol:
 
             def other():
                 return 2
-        """))
+        """)
+        )
         assert resolve_symbol(p, "my_func") == (3, 4)
 
     def test_async_function(self, tmp_path: Path):
         p = tmp_path / "x.py"
-        p.write_text(dedent("""\
+        p.write_text(
+            dedent("""\
             async def fetch():
                 return 1
-        """))
+        """)
+        )
         assert resolve_symbol(p, "fetch") == (1, 2)
 
     def test_class(self, tmp_path: Path):
         p = tmp_path / "x.py"
-        p.write_text(dedent("""\
+        p.write_text(
+            dedent("""\
             class Foo:
                 x = 1
 
                 def bar(self):
                     return self.x
-        """))
+        """)
+        )
         result = resolve_symbol(p, "Foo")
         assert result is not None
         assert result[0] == 1
 
     def test_method_dotted(self, tmp_path: Path):
         p = tmp_path / "x.py"
-        p.write_text(dedent("""\
+        p.write_text(
+            dedent("""\
             class Foo:
                 def bar(self):
                     return 1
                 def baz(self):
                     return 2
-        """))
+        """)
+        )
         assert resolve_symbol(p, "Foo.bar") == (2, 3)
         assert resolve_symbol(p, "Foo.baz") == (4, 5)
 
@@ -82,11 +90,13 @@ class TestResolveSymbol:
     def test_handles_decorators(self, tmp_path: Path):
         # ast.FunctionDef.lineno is the def line, not the decorator line.
         p = tmp_path / "x.py"
-        p.write_text(dedent("""\
+        p.write_text(
+            dedent("""\
             @decorator
             def my_func():
                 return 1
-        """))
+        """)
+        )
         # Either is acceptable; document the actual behavior.
         result = resolve_symbol(p, "my_func")
         assert result is not None

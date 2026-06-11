@@ -27,31 +27,39 @@ def _pin(repo: Path, src: Path, symbol: str) -> Reference:
 
 class TestSymbolStaysOk:
     def test_symbol_unchanged(self, repo: Path):
-        src = _src(repo, """\
+        src = _src(
+            repo,
+            """\
             def foo():
                 return 1
             def bar():
                 return 2
-        """)
+        """,
+        )
         ref = _pin(repo, src, "foo")
         st = check_reference(repo, ref)
         assert st.state == "ok"
 
     def test_symbol_moves_within_file_unchanged(self, repo: Path):
-        src = _src(repo, """\
+        src = _src(
+            repo,
+            """\
             def foo():
                 return 1
             def bar():
                 return 2
-        """)
+        """,
+        )
         ref = _pin(repo, src, "foo")
         # Reorder so foo is now below bar — symbol moved but body unchanged.
-        src.write_text(dedent("""\
+        src.write_text(
+            dedent("""\
             def bar():
                 return 2
             def foo():
                 return 1
-        """))
+        """)
+        )
         st = check_reference(repo, ref)
         assert st.state == "ok", "moved-but-unchanged symbol must stay ok"
         # The actual_lines should reflect the new location.
@@ -61,54 +69,72 @@ class TestSymbolStaysOk:
     def test_symbol_grows_outside_pinned_range_unchanged(self, repo: Path):
         # If a new function is added before our pinned function shifting its
         # lines, the symbol's *body* still hashes the same.
-        src = _src(repo, """\
+        src = _src(
+            repo,
+            """\
             def foo():
                 return 1
-        """)
+        """,
+        )
         ref = _pin(repo, src, "foo")
-        src.write_text(dedent("""\
+        src.write_text(
+            dedent("""\
             def newcomer():
                 return 0
 
             def foo():
                 return 1
-        """))
+        """)
+        )
         st = check_reference(repo, ref)
         assert st.state == "ok"
 
 
 class TestSymbolStale:
     def test_symbol_body_edited(self, repo: Path):
-        src = _src(repo, """\
+        src = _src(
+            repo,
+            """\
             def foo():
                 return 1
-        """)
+        """,
+        )
         ref = _pin(repo, src, "foo")
-        src.write_text(dedent("""\
+        src.write_text(
+            dedent("""\
             def foo():
                 return 99
-        """))
+        """)
+        )
         st = check_reference(repo, ref)
         assert st.state == "stale"
 
     def test_symbol_renamed(self, repo: Path):
-        src = _src(repo, """\
+        src = _src(
+            repo,
+            """\
             def foo():
                 return 1
-        """)
+        """,
+        )
         ref = _pin(repo, src, "foo")
-        src.write_text(dedent("""\
+        src.write_text(
+            dedent("""\
             def renamed():
                 return 1
-        """))
+        """)
+        )
         st = check_reference(repo, ref)
         assert st.state == "stale"
 
     def test_file_deleted(self, repo: Path):
-        src = _src(repo, """\
+        src = _src(
+            repo,
+            """\
             def foo():
                 return 1
-        """)
+        """,
+        )
         ref = _pin(repo, src, "foo")
         src.unlink()
         st = check_reference(repo, ref)
@@ -117,22 +143,27 @@ class TestSymbolStale:
 
 class TestUpdateShasReResolves:
     def test_repins_lines_when_symbol_moved(self, repo: Path):
-        src = _src(repo, """\
+        src = _src(
+            repo,
+            """\
             def foo():
                 return 1
             def bar():
                 return 2
-        """)
+        """,
+        )
         ref = _pin(repo, src, "foo")
         n = Note(id="0001", topic="t", title="T", references=[ref])
         path = write_note(repo, n, "body")
         # Move foo below bar without changing its body.
-        src.write_text(dedent("""\
+        src.write_text(
+            dedent("""\
             def bar():
                 return 2
             def foo():
                 return 1
-        """))
+        """)
+        )
         status = check_note(repo, n, path)
         # All clean (sha matches because body unchanged).
         assert not status.is_stale

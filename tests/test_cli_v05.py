@@ -17,19 +17,28 @@ class TestSymbolPinning:
     def test_pins_symbol(self, repo: Path):
         src = repo / "src" / "thing.py"
         src.parent.mkdir(parents=True)
-        src.write_text(dedent("""\
+        src.write_text(
+            dedent("""\
             def foo():
                 return 1
             def bar():
                 return 2
-        """))
+        """)
+        )
         result = runner.invoke(
             app,
             [
                 "add",
-                "--topic", "x", "--title", "T", "--body", "b",
-                "--refs", "src/thing.py:foo",
-                "--repo", str(repo),
+                "--topic",
+                "x",
+                "--title",
+                "T",
+                "--body",
+                "b",
+                "--refs",
+                "src/thing.py:foo",
+                "--repo",
+                str(repo),
             ],
         )
         assert result.exit_code == 0, result.output
@@ -42,28 +51,39 @@ class TestSymbolPinning:
     def test_symbol_survives_reorder(self, repo: Path):
         src = repo / "src" / "thing.py"
         src.parent.mkdir(parents=True)
-        src.write_text(dedent("""\
+        src.write_text(
+            dedent("""\
             def foo():
                 return 1
             def bar():
                 return 2
-        """))
+        """)
+        )
         runner.invoke(
             app,
             [
                 "add",
-                "--topic", "x", "--title", "T", "--body", "b",
-                "--refs", "src/thing.py:foo",
-                "--repo", str(repo),
+                "--topic",
+                "x",
+                "--title",
+                "T",
+                "--body",
+                "b",
+                "--refs",
+                "src/thing.py:foo",
+                "--repo",
+                str(repo),
             ],
         )
         # Reorder so foo is below bar — symbol moved, body unchanged.
-        src.write_text(dedent("""\
+        src.write_text(
+            dedent("""\
             def bar():
                 return 2
             def foo():
                 return 1
-        """))
+        """)
+        )
         result = runner.invoke(app, ["verify", "--repo", str(repo)])
         assert "verified" in result.output, result.output
 
@@ -75,9 +95,16 @@ class TestSymbolPinning:
             app,
             [
                 "add",
-                "--topic", "x", "--title", "T", "--body", "b",
-                "--refs", "src/thing.py:foo",
-                "--repo", str(repo),
+                "--topic",
+                "x",
+                "--title",
+                "T",
+                "--body",
+                "b",
+                "--refs",
+                "src/thing.py:foo",
+                "--repo",
+                str(repo),
             ],
         )
         # Edit foo's body.
@@ -93,9 +120,16 @@ class TestSymbolPinning:
             app,
             [
                 "add",
-                "--topic", "x", "--title", "T", "--body", "b",
-                "--refs", "src/thing.py:nonexistent",
-                "--repo", str(repo),
+                "--topic",
+                "x",
+                "--title",
+                "T",
+                "--body",
+                "b",
+                "--refs",
+                "src/thing.py:nonexistent",
+                "--repo",
+                str(repo),
             ],
         )
         # Still succeeds, but emits a warning to stderr (CliRunner mixes streams).
@@ -105,20 +139,29 @@ class TestSymbolPinning:
     def test_dotted_symbol(self, repo: Path):
         src = repo / "src" / "thing.py"
         src.parent.mkdir(parents=True)
-        src.write_text(dedent("""\
+        src.write_text(
+            dedent("""\
             class Foo:
                 def bar(self):
                     return 1
                 def baz(self):
                     return 2
-        """))
+        """)
+        )
         runner.invoke(
             app,
             [
                 "add",
-                "--topic", "x", "--title", "T", "--body", "b",
-                "--refs", "src/thing.py:Foo.bar",
-                "--repo", str(repo),
+                "--topic",
+                "x",
+                "--title",
+                "T",
+                "--body",
+                "b",
+                "--refs",
+                "src/thing.py:Foo.bar",
+                "--repo",
+                str(repo),
             ],
         )
         note, _body = parse_note_file(notes_dir(repo) / "0001-x.md")

@@ -65,59 +65,107 @@ class TestHooksCheck:
 
     def test_correctly_wired(self, tmp_path: Path):
         target = tmp_path / "settings.json"
-        target.write_text(json.dumps({
-            "hooks": {
-                "SessionStart": [{
-                    "matcher": "*",
-                    "hooks": [{"type": "command",
-                               "command": "/abs/fieldnotes brief 2>/dev/null || true"}]
-                }],
-                "PostToolUse": [{
-                    "matcher": "Edit|Write|MultiEdit",
-                    "hooks": [{"type": "command",
-                               "command": "/abs/fieldnotes touched --stdin 2>/dev/null || true"}]
-                }],
-            }
-        }))
+        target.write_text(
+            json.dumps(
+                {
+                    "hooks": {
+                        "SessionStart": [
+                            {
+                                "matcher": "*",
+                                "hooks": [
+                                    {
+                                        "type": "command",
+                                        "command": "/abs/fieldnotes brief 2>/dev/null || true",
+                                    }
+                                ],
+                            }
+                        ],
+                        "PostToolUse": [
+                            {
+                                "matcher": "Edit|Write|MultiEdit",
+                                "hooks": [
+                                    {
+                                        "type": "command",
+                                        "command": "/abs/fieldnotes touched --stdin 2>/dev/null || true",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                }
+            )
+        )
         results = check_hooks(target, "/abs/fieldnotes")
         assert all(r.ok for r in results), [(r.name, r.detail) for r in results]
 
     def test_wrong_binary_path(self, tmp_path: Path):
         target = tmp_path / "settings.json"
-        target.write_text(json.dumps({
-            "hooks": {
-                "SessionStart": [{
-                    "matcher": "*",
-                    "hooks": [{"type": "command",
-                               "command": "/old/path/fieldnotes brief 2>/dev/null || true"}]
-                }],
-                "PostToolUse": [{
-                    "matcher": "Edit|Write|MultiEdit",
-                    "hooks": [{"type": "command",
-                               "command": "/old/path/fieldnotes touched --stdin 2>/dev/null || true"}]
-                }],
-            }
-        }))
+        target.write_text(
+            json.dumps(
+                {
+                    "hooks": {
+                        "SessionStart": [
+                            {
+                                "matcher": "*",
+                                "hooks": [
+                                    {
+                                        "type": "command",
+                                        "command": "/old/path/fieldnotes brief 2>/dev/null || true",
+                                    }
+                                ],
+                            }
+                        ],
+                        "PostToolUse": [
+                            {
+                                "matcher": "Edit|Write|MultiEdit",
+                                "hooks": [
+                                    {
+                                        "type": "command",
+                                        "command": "/old/path/fieldnotes touched --stdin 2>/dev/null || true",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                }
+            )
+        )
         results = check_hooks(target, "/new/path/fieldnotes")
         assert all(not r.ok for r in results)
         assert any("expected" in r.detail for r in results)
 
     def test_relative_binary_accepted_when_no_expected(self, tmp_path: Path):
         target = tmp_path / "settings.json"
-        target.write_text(json.dumps({
-            "hooks": {
-                "SessionStart": [{
-                    "matcher": "*",
-                    "hooks": [{"type": "command",
-                               "command": "fieldnotes brief 2>/dev/null || true"}]
-                }],
-                "PostToolUse": [{
-                    "matcher": "Edit|Write|MultiEdit",
-                    "hooks": [{"type": "command",
-                               "command": "fieldnotes touched --stdin 2>/dev/null || true"}]
-                }],
-            }
-        }))
+        target.write_text(
+            json.dumps(
+                {
+                    "hooks": {
+                        "SessionStart": [
+                            {
+                                "matcher": "*",
+                                "hooks": [
+                                    {
+                                        "type": "command",
+                                        "command": "fieldnotes brief 2>/dev/null || true",
+                                    }
+                                ],
+                            }
+                        ],
+                        "PostToolUse": [
+                            {
+                                "matcher": "Edit|Write|MultiEdit",
+                                "hooks": [
+                                    {
+                                        "type": "command",
+                                        "command": "fieldnotes touched --stdin 2>/dev/null || true",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                }
+            )
+        )
         # When binary is not on PATH, we have no expected — accept either form.
         results = check_hooks(target, None)
         assert all(r.ok for r in results)

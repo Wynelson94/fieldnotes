@@ -33,9 +33,7 @@ def git_repo(tmp_path: Path) -> Path:
     from fieldnotes.store import init_repo
 
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True
-    )
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
     init_repo(tmp_path)
     return tmp_path

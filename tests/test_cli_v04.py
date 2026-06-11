@@ -51,11 +51,16 @@ class TestAddWithRangeRefs:
             app,
             [
                 "add",
-                "--topic", "x",
-                "--title", "T",
-                "--body", "b",
-                "--refs", "src/thing.py:3-5",
-                "--repo", str(repo),
+                "--topic",
+                "x",
+                "--title",
+                "T",
+                "--body",
+                "b",
+                "--refs",
+                "src/thing.py:3-5",
+                "--repo",
+                str(repo),
             ],
         )
         assert result.exit_code == 0, result.output
@@ -74,9 +79,16 @@ class TestAddWithRangeRefs:
             app,
             [
                 "add",
-                "--topic", "x", "--title", "T", "--body", "b",
-                "--refs", "src/thing.py:3-5",
-                "--repo", str(repo),
+                "--topic",
+                "x",
+                "--title",
+                "T",
+                "--body",
+                "b",
+                "--refs",
+                "src/thing.py:3-5",
+                "--repo",
+                str(repo),
             ],
         )
         # Edit line 18 — outside the pinned range.
@@ -95,9 +107,16 @@ class TestAddWithRangeRefs:
             app,
             [
                 "add",
-                "--topic", "x", "--title", "T", "--body", "b",
-                "--refs", "src/thing.py:3-5",
-                "--repo", str(repo),
+                "--topic",
+                "x",
+                "--title",
+                "T",
+                "--body",
+                "b",
+                "--refs",
+                "src/thing.py:3-5",
+                "--repo",
+                str(repo),
             ],
         )
         text = src.read_text().splitlines()
@@ -114,9 +133,16 @@ class TestAddWithRangeRefs:
             app,
             [
                 "add",
-                "--topic", "x", "--title", "T", "--body", "b",
-                "--refs", "src/thing.py:2",
-                "--repo", str(repo),
+                "--topic",
+                "x",
+                "--title",
+                "T",
+                "--body",
+                "b",
+                "--refs",
+                "src/thing.py:2",
+                "--repo",
+                str(repo),
             ],
         )
         note, _body = parse_note_file(notes_dir(repo) / "0001-x.md")

@@ -58,9 +58,13 @@ class TestComputeRangeSha:
         f.write_text("a\nb\n")
         # File has 2 lines; ask for lines 100-200 → empty slice → empty hash.
         result = compute_range_sha(f, [100, 200])
-        assert result == compute_range_sha(tmp_path / "empty.py.placeholder", [1, 1]) or result is not None
+        assert (
+            result == compute_range_sha(tmp_path / "empty.py.placeholder", [1, 1])
+            or result is not None
+        )
         # The deterministic check: it equals sha of empty bytes.
         import hashlib
+
         assert result == hashlib.sha256(b"").hexdigest()
 
     def test_missing_file(self, tmp_path: Path):

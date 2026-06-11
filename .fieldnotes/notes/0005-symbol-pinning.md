@@ -10,13 +10,13 @@ references:
   symbol: resolve_symbol
 - lines:
   - 84
-  - 114
+  - 112
   path: fieldnotes/verify.py
-  sha: 730e89b633b908ca55df275c3270008395be31ed1c06b0cb57ae9844ae578d38
+  sha: 9fbe540df1726f19af7a41aad66b02fbdb6f3be501104e167884203f7d4f3e2b
   symbol: check_reference
 - lines:
-  - 227
-  - 258
+  - 277
+  - 308
   path: fieldnotes/cli.py
   sha: a0f010323cfe07954ce050642400437d44c7b93e6cdaff97d16a93523fee4777
   symbol: _parse_ref_spec
