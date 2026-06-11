@@ -35,6 +35,7 @@ from fieldnotes.store import (
     notes_referencing,
     parse_note_file,
     read_note,
+    serialize_note,
     to_repo_relative,
     write_note,
 )
@@ -625,7 +626,7 @@ def verify(
                 rebase=do_rebase,
                 rebase_results=note_results if do_rebase else None,
             )
-            write_note(repo_root, new_note, parse_note_file(s.path)[1])
+            s.path.write_text(serialize_note(new_note, parse_note_file(s.path)[1]))
             rebase_results.extend(note_results)
             changed = _changed_refs(s, note_results)
             if changed:

@@ -91,3 +91,21 @@ class TestClaimCheckReport:
         result = runner.invoke(app, ["verify", "--update", "--repo", str(repo)])
         assert result.exit_code == 0, result.output
         assert "re-read" not in result.output
+
+
+class TestUpdateWritesOriginalNotePath:
+    def test_update_keeps_mismatched_note_filename(self, repo: Path):
+        (repo / "f.py").write_text("x = 1\n")
+        _add(repo, "f.py")
+        original = next((repo / ".fieldnotes" / "notes").glob("0001-*.md"))
+        renamed = original.with_name("0001-t-renamed.md")
+        original.rename(renamed)
+        (repo / "f.py").write_text("x = 2\n")
+
+        result = runner.invoke(app, ["verify", "--update", "--repo", str(repo)])
+
+        assert result.exit_code == 0, result.output
+        note_files = sorted((repo / ".fieldnotes" / "notes").glob("0001-*.md"))
+        assert note_files == [renamed]
+        check = runner.invoke(app, ["verify", "--check", "--repo", str(repo)])
+        assert check.exit_code == 0, check.output
