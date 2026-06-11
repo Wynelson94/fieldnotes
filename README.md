@@ -109,6 +109,9 @@ The body is plain markdown. The frontmatter and SHA pins do the heavy lifting; t
 | `fieldnotes verify [--check] [--quiet] [--update] [--no-rebase] [--json]` | Recompute SHAs; report drift. `--check` exits non-zero on drift (git hooks / CI); `--quiet` mutes the all-clear line. `--update` re-pins — line-range pins follow moved blocks automatically (`--no-rebase` opts out), and refs whose content *changed* are listed for a re-read: re-pinning fixes the SHA, not the claim. |
 | `fieldnotes diff <id-or-topic>` | Show what changed under a note's pins since they were pinned: per-reference git diff from the last commit before the pin to the working tree. The companion to `verify`'s re-read list. |
 | `fieldnotes stale` | Shortcut: list only stale notes. |
+| `fieldnotes confirm <id-or-topic> [--by NAME]` | Record that you re-read the note against current code and the claim holds. Notes accrue a visible validation ledger; stale notes are refused (heal first). |
+| `fieldnotes gaps [--since '90 days ago'] [--json]` | The hottest-churning files with no notes — where undocumented knowledge piles up. |
+| `fieldnotes handoff` | Session-end check for the Stop hook: changed files vs notes; asks the closing session to record what it learned or decline on purpose. Silent when there's nothing to say. |
 | `fieldnotes search <query> [--json]` | Substring search over titles + bodies. |
 | `fieldnotes index` | Regenerate `INDEX.md` from `notes/`. |
 | `fieldnotes supersede <id> --title ... --body ...` | Replace an existing note; old one is marked `superseded_by`. |
@@ -187,12 +190,13 @@ fieldnotes add --from draft.md
 
 ## Wiring it into Claude Code
 
-Two hooks turn fieldnotes from "tool I have to remember" into "thing that shows up at the right moment."
+Three hooks turn fieldnotes from "tool I have to remember" into "thing that shows up at the right moment."
 
-- **SessionStart** runs `fieldnotes brief` — at the top of every new session, the total note count, any stale notes, and which notes reference recently-changed files.
-- **PostToolUse** (matching `Edit|Write|MultiEdit`) runs `fieldnotes touched` — every time Claude edits a file, any note referencing that file surfaces as a one-line reminder.
+- **SessionStart** runs `fieldnotes brief` — at the top of every new session, the total note count, any stale notes, which notes reference recently-changed files, and (when a file has churned hot with no notes) the one coverage gap worth knowing about.
+- **PostToolUse** (matching `Edit|Write|MultiEdit`) runs `fieldnotes touched` — every time Claude edits a file, any note referencing that file surfaces with its claim and pin (`0008 RLS hides INSERT in RETURNING (whole file)`).
+- **Stop** runs `fieldnotes handoff` — at session end, the changed-files-vs-notes check: record what this session learned, or decline on purpose.
 
-Both commands are silent when there's nothing to say (no `.fieldnotes/`, no matching notes, no JSON on stdin), so they're safe to wire in unconditionally.
+All three commands are silent when there's nothing to say (no `.fieldnotes/`, no matching notes, nothing changed), so they're safe to wire in unconditionally.
 
 Three steps to go live.
 
@@ -281,7 +285,9 @@ Append-only is deliberate. If a note turns out to be wrong, supersede it (`field
 
 ## Status
 
-**v0.10.0** — symbol pinning beyond Python. TypeScript/JavaScript declarations and SQL CREATE blocks (tables, RLS policies, functions, triggers, views, indexes) can now be pinned by name and re-resolve on every verify, so they follow moved code the way Python symbols always have. Driven by real usage: two-thirds of references in the wild point at .ts/.tsx/.sql files and were stuck with whole-file pins.
+**v0.11.0** — the trust release. Notes accrue a validation ledger (`confirm`): a claim that has held under repeated re-reads is visibly more trustworthy than one nobody checked, and `confidence` finally earns its place as the author's prior alongside that evidence. `gaps` makes the tool's one silent failure — the note never written — a measurable (git churn × coverage), and `handoff` (a third Claude Code hook, at session end) turns "write notes" from a habit you forget into a moment with a prompt: record what you learned, or decline on purpose.
+
+v0.10.0 — symbol pinning beyond Python. TypeScript/JavaScript declarations and SQL CREATE blocks (tables, RLS policies, functions, triggers, views, indexes) can now be pinned by name and re-resolve on every verify, so they follow moved code the way Python symbols always have. Driven by real usage: two-thirds of references in the wild point at .ts/.tsx/.sql files and were stuck with whole-file pins.
 
 v0.9.0 — staleness you can trust and explain. `fieldnotes diff <id>` shows what actually changed under a note's pins since they were pinned. `verify --update` rebases moved line-range pins by default and lists notes whose pinned content *changed* for a re-read — re-pinning fixes the SHA, not the claim. Advisory refs (`--advisory-refs`) pin volatile files for context without ever gating on them. `verify`/`brief` nudge once, dimly, when the pre-commit gate isn't installed.
 

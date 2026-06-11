@@ -28,7 +28,9 @@ tags:
 - precision
 title: Why --refs supports path:N-M syntax
 topic: line-range-pinning
-validations: []
+validations:
+- at: '2026-06-11T18:30:02.945954Z'
+  by: claude-fable-5
 written_at: '2026-04-26T00:16:37.430108Z'
 written_by: claude-opus-4-7
 ---

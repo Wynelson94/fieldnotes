@@ -11,8 +11,8 @@ references:
 - advisory: true
   lines: null
   path: pyproject.toml
-  pinned_at: '2026-06-11T17:54:48.146905Z'
-  sha: 22f857f72d55eb42572bafb48ecff0b4e8e831d59279fbf848db154ea9eed67a
+  pinned_at: '2026-06-11T18:29:40.415473Z'
+  sha: 109e00b95ed89c636017ab4fd19ea50af2b963bb1ef5564b21c9fbb4c31bab07
   symbol: null
 session_id: null
 superseded_by: null
@@ -22,7 +22,9 @@ tags:
 - typer
 title: How the fieldnotes CLI is wired
 topic: cli-entry-points
-validations: []
+validations:
+- at: '2026-06-11T18:30:02.420910Z'
+  by: claude-fable-5
 written_at: '2026-04-25T03:51:37.089950Z'
 written_by: claude-opus-4-7
 ---

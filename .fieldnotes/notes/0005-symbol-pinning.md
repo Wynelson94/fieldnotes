@@ -36,6 +36,9 @@ tags:
 - verify
 title: Why fieldnotes pins to symbols, not just lines
 topic: symbol-pinning
+validations:
+- at: '2026-06-11T18:30:02.841125Z'
+  by: claude-fable-5
 written_at: '2026-04-25T04:45:32.358332Z'
 written_by: claude-opus-4-7
 ---

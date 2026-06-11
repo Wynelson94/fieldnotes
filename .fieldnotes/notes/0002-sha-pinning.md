@@ -23,7 +23,9 @@ tags:
 - drift
 title: How drift detection works
 topic: sha-pinning
-validations: []
+validations:
+- at: '2026-06-11T18:30:02.525692Z'
+  by: claude-fable-5
 written_at: '2026-04-25T03:51:37.186973Z'
 written_by: claude-opus-4-7
 ---

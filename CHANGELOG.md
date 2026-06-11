@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.0 — 2026-06-11
+
+The trust release. A note that has held under repeated re-reads is more trustworthy than one nobody ever checked — but until now both looked identical, and the note that was never written at all was invisible. This release makes the tool's epistemics visible and its one silent failure measurable.
+
+- **Validation ledger.** `fieldnotes confirm <id>` records that a reader re-read the note against current code and the claim holds (`validations: [{at, by}]` on the note). Refuses stale notes — confirm against current pins, not over drift. `get` and `confirm` render confidence *with* the ledger (`confidence high — validated 3× (last … by …)`), so the author's prior and the accumulated evidence both mean something; `verify --update`'s re-read block now points at `confirm` so the act stops evaporating.
+- **`fieldnotes gaps`** — the hottest-churning files with no notes (git churn × note coverage, `--since`/`--limit`/`--json`). The gate catches a note going stale; this catches the note that was never written. `brief` gains at most one ambient line, only when a file has churned ≥5 commits uncovered — quietness is the feature.
+- **`fieldnotes handoff`** — the session-end moment, designed for the Claude Code Stop hook (now part of `install-hooks`, and checked by `doctor`). Shows which of the session's changed files are covered (and by which claims) and which aren't, then asks the closing session to record what it learned — or decline on purpose. Silent whenever there's nothing to say.
+- **Topic hygiene**: adding a second ACTIVE note on an existing topic warns and suggests `supersede`; topic lookup now prefers the lone active note when a slug is shared with its superseded ancestors (so `get <topic>` works on supersede chains).
+- **Claim-attached surfacing**: `touched` and `for` show the note title and pin descriptor (`0007 line-range pinning follows moved blocks (lines 283-316)`), not bare ids — the claim at a glance, where you're editing.
+- `search` now reaches topics and tags, not just titles and bodies.
+- 322 tests, ruff clean.
+
 ## 0.10.0 — 2026-06-11
 
 Symbol pinning beyond Python. In real-world usage, two-thirds of pinned references point at TypeScript and SQL files, where the only options were whole-file pins (noisy — any edit anywhere flags the note) or line ranges (brittle without symbols' re-resolution). This closes the gap.
