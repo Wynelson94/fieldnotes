@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "claude-fieldnotes"
-version = "0.8.1"
+version = "0.9.0"
 description = "Claude-authored, repo-scoped notes about a codebase. SHA-pinned, drift-aware, plaintext markdown."
 readme = "README.md"
 license = { text = "MIT" }

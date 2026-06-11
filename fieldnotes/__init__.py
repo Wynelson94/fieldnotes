@@ -1,3 +1,3 @@
 """fieldnotes — Claude-authored, repo-scoped notes about a codebase."""
 
-__version__ = "0.8.1"
+__version__ = "0.9.0"

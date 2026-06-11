@@ -11,8 +11,8 @@ references:
 - advisory: true
   lines: null
   path: pyproject.toml
-  pinned_at: null
-  sha: 5b4648c6aadf3edfcad2ec1249c0fac0bdad00cdd227b4ab4b839de246d0f813
+  pinned_at: '2026-06-11T17:46:31.869480Z'
+  sha: 201063e68c3f937d56b8349371712c12d4dcbd7473cf0afdb44459a3565f6d84
   symbol: null
 session_id: null
 superseded_by: null
