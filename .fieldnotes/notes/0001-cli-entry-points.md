@@ -2,12 +2,14 @@
 confidence: high
 id: '0001'
 references:
-- lines: null
+- advisory: false
+  lines: null
   path: fieldnotes/cli.py
-  pinned_at: '2026-06-11T17:38:52.719491Z'
-  sha: c52fd65553d6dc8530e983fd73e2916fea378ce777612c762da3b7f63c79baed
+  pinned_at: '2026-06-11T17:42:30.696858Z'
+  sha: 4015923161b51a684d9a275be7c0ace1bb06ed4050c2146b43036156095f1326
   symbol: null
-- lines: null
+- advisory: true
+  lines: null
   path: pyproject.toml
   pinned_at: null
   sha: 5b4648c6aadf3edfcad2ec1249c0fac0bdad00cdd227b4ab4b839de246d0f813

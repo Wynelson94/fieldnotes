@@ -27,6 +27,10 @@ class Reference(BaseModel):
     lines: list[int] | None = None
     symbol: str | None = None
     pinned_at: datetime | None = None
+    # Advisory refs attach a file for context; their drift never makes the
+    # note stale (no gate block, no stale listing). For volatile files like
+    # pyproject.toml whose churn says nothing about the note's claim.
+    advisory: bool = False
 
     @field_validator("path")
     @classmethod

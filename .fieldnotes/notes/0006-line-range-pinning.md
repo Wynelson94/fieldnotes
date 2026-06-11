@@ -2,16 +2,18 @@
 confidence: high
 id: '0006'
 references:
-- lines:
-  - 290
-  - 323
+- advisory: false
+  lines:
+  - 301
+  - 334
   path: fieldnotes/cli.py
   pinned_at: null
   sha: 9d8fde0b8d94183e2994a4663718b6425991632414e36e04cb2c35be0e37c9df
   symbol: null
-- lines:
-  - 58
-  - 77
+- advisory: false
+  lines:
+  - 63
+  - 82
   path: fieldnotes/verify.py
   pinned_at: null
   sha: 05e5204641225a00be6f1f9daa7d3533c3741bc24a7a9939da2ea70e434eb352

@@ -2,15 +2,17 @@
 confidence: high
 id: '0003'
 references:
-- lines: null
+- advisory: false
+  lines: null
   path: fieldnotes/brief.py
   pinned_at: null
   sha: 5f62b9820cec3521eedb9cecc5345238b3098e60c19f881f5955b22c8bdcc7ea
   symbol: null
-- lines: null
+- advisory: false
+  lines: null
   path: fieldnotes/cli.py
-  pinned_at: '2026-06-11T17:38:52.720275Z'
-  sha: c52fd65553d6dc8530e983fd73e2916fea378ce777612c762da3b7f63c79baed
+  pinned_at: '2026-06-11T17:42:30.697713Z'
+  sha: 4015923161b51a684d9a275be7c0ace1bb06ed4050c2146b43036156095f1326
   symbol: null
 session_id: null
 superseded_by: null

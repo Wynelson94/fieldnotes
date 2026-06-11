@@ -37,11 +37,16 @@ class NoteStatus:
 
     @property
     def is_stale(self) -> bool:
-        return any(r.is_problem for r in self.references)
+        return any(r.is_problem and not r.reference.advisory for r in self.references)
 
     @property
     def stale_count(self) -> int:
-        return sum(1 for r in self.references if r.is_problem)
+        return sum(1 for r in self.references if r.is_problem and not r.reference.advisory)
+
+    @property
+    def needs_repin(self) -> bool:
+        """Any drifted ref at all, advisory included — what --update refreshes."""
+        return any(r.is_problem for r in self.references)
 
 
 def compute_sha(path: Path) -> str | None:
@@ -222,6 +227,7 @@ def update_shas(
                         # Content is identical, only its location changed —
                         # the pin event is still the original one.
                         pinned_at=ref.pinned_at,
+                        advisory=ref.advisory,
                     )
                 )
                 continue
@@ -249,6 +255,7 @@ def update_shas(
                 pinned_at=(
                     datetime.now(timezone.utc) if st.actual_sha != ref.sha else ref.pinned_at
                 ),
+                advisory=ref.advisory,
             )
         )
     return note.model_copy(update={"references": new_refs})

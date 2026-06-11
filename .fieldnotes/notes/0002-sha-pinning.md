@@ -2,15 +2,17 @@
 confidence: high
 id: '0002'
 references:
-- lines: null
+- advisory: false
+  lines: null
   path: fieldnotes/verify.py
-  pinned_at: '2026-06-11T17:38:52.720009Z'
-  sha: 3ec795319c02dc258b338e279bc3b888b8f0b208421c17a99c9275f5092742d4
+  pinned_at: '2026-06-11T17:42:30.697414Z'
+  sha: 24d3000d45232b7c543d16b5295129f578b45c6c84dc4d729a69312a9045f5d9
   symbol: null
-- lines: null
+- advisory: false
+  lines: null
   path: fieldnotes/models.py
-  pinned_at: '2026-06-11T17:38:52.720014Z'
-  sha: efc271e1e389d6a65929f1c535f8fea9f760ab39d1621088026e2befcc3ded98
+  pinned_at: '2026-06-11T17:42:30.697420Z'
+  sha: b0659fb01c4408cb14fffd91d8119aad2fa196ba86aed8671a997f996aabfc77
   symbol: null
 session_id: null
 superseded_by: null

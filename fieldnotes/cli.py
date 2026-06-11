@@ -159,6 +159,14 @@ def add(
             help="Comma-separated source paths to pin (sha256 captured at write).",
         ),
     ] = None,
+    advisory_refs: Annotated[
+        str | None,
+        typer.Option(
+            "--advisory-refs",
+            help="Like --refs, but drift never makes the note stale — context-only "
+            "pins for volatile files (e.g. pyproject.toml).",
+        ),
+    ] = None,
     confidence: Annotated[
         Confidence,
         typer.Option("--confidence", help="high | medium | speculation"),
@@ -185,7 +193,9 @@ def add(
             )
             raise typer.Exit(code=2)
         body_text = _read_body(body)
-        refs_list = _build_refs(repo_root, refs)
+        refs_list = _build_refs(repo_root, refs) + _build_refs(
+            repo_root, advisory_refs, advisory=True
+        )
         tag_list = [t.strip() for t in tags.split(",")] if tags else []
         note = Note(
             id=next_id(repo_root),
@@ -272,6 +282,7 @@ def _note_from_draft(
                 lines=effective_lines,
                 symbol=effective_symbol,
                 pinned_at=datetime.now(timezone.utc) if sha else None,
+                advisory=ref.advisory,
             )
         )
     meta["references"] = [r.model_dump() for r in pinned_refs]
@@ -321,7 +332,7 @@ def _parse_ref_spec(spec: str) -> tuple[str, list[int] | None, str | None]:
     return spec, None, None
 
 
-def _build_refs(repo_root: Path, refs: str | None) -> list[Reference]:
+def _build_refs(repo_root: Path, refs: str | None, advisory: bool = False) -> list[Reference]:
     if not refs:
         return []
     out: list[Reference] = []
@@ -374,6 +385,7 @@ def _build_refs(repo_root: Path, refs: str | None) -> list[Reference]:
                 lines=lines,
                 symbol=symbol,
                 pinned_at=datetime.now(timezone.utc) if sha else None,
+                advisory=advisory,
             )
         )
     return out
@@ -464,6 +476,8 @@ def _changed_refs(status: NoteStatus, rebase_results: list[RebaseResult]) -> lis
     for r in status.references:
         if r.state != "stale":
             continue
+        if r.reference.advisory:
+            continue
         if (r.reference.path, tuple(r.reference.lines or [])) in moved:
             continue
         if r.reference.symbol is not None and r.actual_sha is None:
@@ -514,11 +528,13 @@ def verify(
     rows = list_notes(repo_root)
     statuses = [check_note(repo_root, n, p) for (n, p) in rows]
     stale = [s for s in statuses if s.is_stale]
+    # --update also quietly refreshes advisory drift, which never counts as stale.
+    needs_repin = [s for s in statuses if s.needs_repin]
 
     rebase_results: list[RebaseResult] = []
     review: list[tuple[NoteStatus, list[str]]] = []
-    if update and stale:
-        for s in stale:
+    if update and needs_repin:
+        for s in needs_repin:
             note_results: list[RebaseResult] = []
             new_note = update_shas(
                 s.note,
@@ -545,7 +561,12 @@ def verify(
                     "stale": s.is_stale,
                     "stale_count": s.stale_count,
                     "references": [
-                        {"path": r.reference.path, "state": r.state} for r in s.references
+                        {
+                            "path": r.reference.path,
+                            "state": r.state,
+                            "advisory": r.reference.advisory,
+                        }
+                        for r in s.references
                     ],
                 }
             )
@@ -559,13 +580,22 @@ def verify(
             console.print("[dim]no notes[/dim]")
         return
 
+    if not update and not quiet:
+        for s in statuses:
+            for r in s.references:
+                if r.is_problem and r.reference.advisory:
+                    console.print(
+                        f"[dim]drifted (advisory) {s.note.id} ({s.note.topic}): "
+                        f"{r.reference.path}[/dim]"
+                    )
+
     if not stale:
         if not quiet:
             console.print(f"[green]all {len(statuses)} notes verified[/green]")
         return
 
     if update:
-        console.print(f"[yellow]re-pinned {len(stale)} stale note(s)[/yellow]")
+        console.print(f"[yellow]re-pinned {len(needs_repin)} stale note(s)[/yellow]")
         for r in rebase_results:
             if r.outcome == "rebased":
                 console.print(
