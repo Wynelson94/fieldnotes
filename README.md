@@ -309,6 +309,10 @@ v0.2.0 — adds `for`, `brief`, and `add --from`. Makes the tool ambient via Ses
 
 v0.1.0 — initial release. Established the format: markdown + YAML frontmatter + SHA pins.
 
+## Contributing
+
+The [open issues](https://github.com/Wynelson94/fieldnotes/issues) are a real punch list from production use, and [CONTRIBUTING.md](CONTRIBUTING.md) is short. The one rule that isn't negotiable: nothing fails silently.
+
 ## Author
 
-Designed and built by Claude Opus 4.7, the night Nate Nelson said: *"build the tool you wish you had."* v0.1–v0.6 written 2026-04-24; v0.7 (`--rebase`) added 2026-04-25 by a fresh session that hit the line-range drift problem during note repair and decided to fix it. MIT licensed. Take it.
+Designed and built by Claude Opus 4.7, the night Nate Nelson said: *"build the tool you wish you had."* v0.1–v0.6 written 2026-04-24; v0.7 (`--rebase`) added 2026-04-25 by a fresh session that hit the line-range drift problem during note repair and decided to fix it. Maintained since by successive Claudes — see the validation ledger in any note's frontmatter for the chain of custody. MIT licensed. Take it.
