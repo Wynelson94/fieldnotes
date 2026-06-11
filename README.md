@@ -97,7 +97,7 @@ The body is plain markdown. The frontmatter and SHA pins do the heavy lifting; t
 | Command | Purpose |
 |---|---|
 | `fieldnotes init [PATH]` | Scaffold `.fieldnotes/` in the given dir (or cwd). Idempotent. |
-| `fieldnotes add ...` | Create a note via flags, or `--from draft.md` to read a markdown+frontmatter file. |
+| `fieldnotes add ...` | Create a note via flags, or `--from draft.md` to read a markdown+frontmatter file. `--advisory-refs` pins files for context whose drift never makes the note stale (e.g. pyproject.toml). |
 | `fieldnotes for <path>` | List every note that references a given source file. |
 | `fieldnotes brief` | Compact session-start summary. Silent when no `.fieldnotes/` exists — safe to wire as a hook. |
 | `fieldnotes touched <path>` | Quietly surface notes that reference an edited file. Silent on no match. Designed for PostToolUse hooks. |
@@ -106,7 +106,8 @@ The body is plain markdown. The frontmatter and SHA pins do the heavy lifting; t
 | `fieldnotes doctor` | Diagnose the installation: binary on PATH, Claude Code hooks wired, git gate wired, .fieldnotes/ in cwd. |
 | `fieldnotes list [--tag T] [--confidence C] [--stale] [--json]` | List notes. |
 | `fieldnotes get <id-or-topic>` | Print a single note. |
-| `fieldnotes verify [--check] [--quiet] [--update] [--rebase] [--json]` | Recompute SHAs; report drift. `--check` exits non-zero on drift (git hooks / CI); `--quiet` mutes the all-clear line. `--update` re-pins; `--rebase` makes line-range pins follow moved blocks. |
+| `fieldnotes verify [--check] [--quiet] [--update] [--no-rebase] [--json]` | Recompute SHAs; report drift. `--check` exits non-zero on drift (git hooks / CI); `--quiet` mutes the all-clear line. `--update` re-pins — line-range pins follow moved blocks automatically (`--no-rebase` opts out), and refs whose content *changed* are listed for a re-read: re-pinning fixes the SHA, not the claim. |
+| `fieldnotes diff <id-or-topic>` | Show what changed under a note's pins since they were pinned: per-reference git diff from the last commit before the pin to the working tree. The companion to `verify`'s re-read list. |
 | `fieldnotes stale` | Shortcut: list only stale notes. |
 | `fieldnotes search <query> [--json]` | Substring search over titles + bodies. |
 | `fieldnotes index` | Regenerate `INDEX.md` from `notes/`. |
@@ -260,6 +261,8 @@ The hook is well-behaved: it honors `core.hooksPath`, never overwrites a pre-com
 - **`missing`** — file no longer exists. Note may be obsolete.
 - **`unpinned`** — note has no sha (added without `--refs`, or sha was nulled). The tool can't tell whether the file matches.
 
+A reference can also be marked **advisory** (`--advisory-refs`, or `advisory: true` in a draft): it stays pinned and visible to `for`/`diff`, but its drift never makes the note stale — no gate block, no stale listing. Use it for volatile files (version manifests, lockfiles) whose churn says nothing about the note's claim.
+
 ## How I use this (notes for other Claudes)
 
 When you learn something non-trivial about a codebase that you'd want next-session-Claude to know:
@@ -274,7 +277,9 @@ Append-only is deliberate. If a note turns out to be wrong, supersede it (`field
 
 ## Status
 
-**v0.8.1** — audit fixes. Hook generators shell-quote the binary path they bake in (an unquoted path with a space made the Claude Code hooks fail silently on every trigger); `verify --rebase` now implies `--update` instead of silently no-opping when run alone.
+**v0.9.0** — staleness you can trust and explain. `fieldnotes diff <id>` shows what actually changed under a note's pins since they were pinned. `verify --update` rebases moved line-range pins by default and lists notes whose pinned content *changed* for a re-read — re-pinning fixes the SHA, not the claim. Advisory refs (`--advisory-refs`) pin volatile files for context without ever gating on them. `verify`/`brief` nudge once, dimly, when the pre-commit gate isn't installed.
+
+v0.8.1 — audit fixes. Hook generators shell-quote the binary path they bake in (an unquoted path with a space made the Claude Code hooks fail silently on every trigger); `verify --rebase` now implies `--update` instead of silently no-opping when run alone.
 
 v0.8.0 — the pre-commit gate. `fieldnotes install-git-hook` installs a git `pre-commit` hook that blocks any commit leaving a note stale; `init` installs it automatically. `verify --check` exits non-zero on drift (for git hooks and CI), `--quiet` mutes the all-clear line. `brief` and `touched` notify about drift — this is the layer that *enforces* it.
 

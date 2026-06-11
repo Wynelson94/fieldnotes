@@ -59,9 +59,7 @@ class TestUpdateRebasesByDefault:
         _add(repo, "f.py:2-3")
         (repo / "f.py").write_text("# new line\n# header\ndef f():\n    return 1\n")
 
-        result = runner.invoke(
-            app, ["verify", "--update", "--no-rebase", "--repo", str(repo)]
-        )
+        result = runner.invoke(app, ["verify", "--update", "--no-rebase", "--repo", str(repo)])
         assert result.exit_code == 0, result.output
         assert _pinned_lines(repo) == [2, 3]
 

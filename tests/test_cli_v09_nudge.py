@@ -24,7 +24,19 @@ def _add(repo: Path) -> None:
     (repo / "f.py").write_text("x = 1\n")
     result = runner.invoke(
         app,
-        ["add", "--topic", "t", "--title", "T", "--body", "b", "--refs", "f.py", "--repo", str(repo)],
+        [
+            "add",
+            "--topic",
+            "t",
+            "--title",
+            "T",
+            "--body",
+            "b",
+            "--refs",
+            "f.py",
+            "--repo",
+            str(repo),
+        ],
     )
     assert result.exit_code == 0, result.output
 

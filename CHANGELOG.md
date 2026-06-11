@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0 — 2026-06-11
+
+Staleness you can trust and explain. Re-pinning a stale note fixes the SHA but not the claim — this release makes the gap between those two visible, and stops the tool from letting you do the wrong thing the easy way. Shaped by real usage: 76 notes across 7 repos, 47% stale, and the staleness almost perfectly predicted by whether the pre-commit gate was installed.
+
+- **`fieldnotes diff <id-or-topic>`** — show what changed under a note's pins since they were pinned: per-reference git diff from the last commit before the pin time to the working tree (uncommitted drift included). Turns "stale" from a flag into something a reader can act on. New `Reference.pinned_at` field stamps the pin time (restamped only when a re-pin actually changes the SHA, preserved across rebases; older notes fall back to `written_at`).
+- **`verify --update` is now safe by default.** Moved line-range pins rebase automatically — no `--rebase` flag needed (`--no-rebase` opts out). And when a re-pin covers content that *changed* rather than moved, the CLI prints a review block naming the notes whose prose needs a re-read. Previously `--update` silently re-pinned shifted content in place; the bug that motivated this bit the author mid-audit.
+- **Advisory references.** `add --advisory-refs path` (or `advisory: true` on a draft ref) pins a file for context without its drift ever making the note stale: no gate block, no stale listing, no re-read nag. `verify --update` still refreshes the pin quietly. For volatile files — the motivating case was a pyproject.toml pin going stale on every version bump.
+- **Gate-adoption nudge.** `verify` and `brief` print one dim tip when the repo is git but the pre-commit gate isn't installed. Never in `--check`/`--quiet`/`--json` paths, so hooks and CI stay silent. In the wild, gated repos hold <20% stale; ungated drift to 50–100%.
+- 267 tests, ruff clean.
+
 ## 0.8.1 — 2026-06-11
 
 Audit release: three silent-failure bugs found in a code audit, all fixed with tests.
