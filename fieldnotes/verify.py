@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fieldnotes.models import Note, Reference
@@ -218,6 +219,9 @@ def update_shas(
                         sha=ref.sha,
                         lines=[new_start, new_end],
                         symbol=None,
+                        # Content is identical, only its location changed —
+                        # the pin event is still the original one.
+                        pinned_at=ref.pinned_at,
                     )
                 )
                 continue
@@ -242,6 +246,9 @@ def update_shas(
                 sha=st.actual_sha,
                 lines=new_lines,
                 symbol=ref.symbol,
+                pinned_at=(
+                    datetime.now(timezone.utc) if st.actual_sha != ref.sha else ref.pinned_at
+                ),
             )
         )
     return note.model_copy(update={"references": new_refs})

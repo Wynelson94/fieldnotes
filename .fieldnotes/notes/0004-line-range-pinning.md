@@ -3,15 +3,17 @@ confidence: high
 id: '0004'
 references:
 - lines:
-  - 220
-  - 244
+  - 221
+  - 245
   path: fieldnotes/cli.py
+  pinned_at: null
   sha: 848fac0c5cacc9a488f99e67fe36f00f9c91dfbfcf6e20469e9aee18d8403adf
   symbol: null
 - lines:
-  - 50
-  - 67
+  - 51
+  - 68
   path: fieldnotes/verify.py
+  pinned_at: null
   sha: 4ba12faa5073abcafabe209d8e94fc5aa91905f6ea17d3f1a777b68e7b13861b
   symbol: null
 session_id: null

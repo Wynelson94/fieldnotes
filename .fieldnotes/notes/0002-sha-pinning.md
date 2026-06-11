@@ -4,11 +4,13 @@ id: '0002'
 references:
 - lines: null
   path: fieldnotes/verify.py
-  sha: 405b4ebee350bf7560e9c7cc048c9e981ceee1f9000912c91f4c8e7375c5c0c1
+  pinned_at: '2026-06-11T17:38:52.720009Z'
+  sha: 3ec795319c02dc258b338e279bc3b888b8f0b208421c17a99c9275f5092742d4
   symbol: null
 - lines: null
   path: fieldnotes/models.py
-  sha: 409bde879e741b510ea8082a3c76123b0a51828438bca76503a8ea143c765786
+  pinned_at: '2026-06-11T17:38:52.720014Z'
+  sha: efc271e1e389d6a65929f1c535f8fea9f760ab39d1621088026e2befcc3ded98
   symbol: null
 session_id: null
 superseded_by: null

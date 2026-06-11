@@ -26,6 +26,7 @@ class Reference(BaseModel):
     sha: str | None = None
     lines: list[int] | None = None
     symbol: str | None = None
+    pinned_at: datetime | None = None
 
     @field_validator("path")
     @classmethod
@@ -58,6 +59,13 @@ class Reference(BaseModel):
                 "symbol must be a Python identifier or dotted path "
                 "(e.g. 'my_func' or 'MyClass.method')"
             )
+        return v
+
+    @field_validator("pinned_at")
+    @classmethod
+    def _pinned_at_tz(cls, v: datetime | None) -> datetime | None:
+        if v is not None and v.tzinfo is None:
+            return v.replace(tzinfo=timezone.utc)
         return v
 
     @field_validator("lines")

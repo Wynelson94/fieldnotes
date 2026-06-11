@@ -17,6 +17,7 @@ from rich.table import Table
 
 from fieldnotes import __version__
 from fieldnotes.brief import build_brief
+from fieldnotes.diffcmd import diff_note, is_git_repo, pin_descriptor
 from fieldnotes.doctor import run_diagnostics
 from fieldnotes.githook import install_git_hook
 from fieldnotes.index import rebuild_index
@@ -265,7 +266,13 @@ def _note_from_draft(
                 f"[yellow]warning[/yellow]: ref path not found: {ref.path} (sha left null)"
             )
         pinned_refs.append(
-            Reference(path=ref.path, sha=sha, lines=effective_lines, symbol=effective_symbol)
+            Reference(
+                path=ref.path,
+                sha=sha,
+                lines=effective_lines,
+                symbol=effective_symbol,
+                pinned_at=datetime.now(timezone.utc) if sha else None,
+            )
         )
     meta["references"] = [r.model_dump() for r in pinned_refs]
     note = Note(**meta)
@@ -360,7 +367,15 @@ def _build_refs(repo_root: Path, refs: str | None) -> list[Reference]:
             err_console.print(
                 f"[yellow]warning[/yellow]: ref path not found: {ref_path} (sha left null)"
             )
-        out.append(Reference(path=ref_path, sha=sha, lines=lines, symbol=symbol))
+        out.append(
+            Reference(
+                path=ref_path,
+                sha=sha,
+                lines=lines,
+                symbol=symbol,
+                pinned_at=datetime.now(timezone.utc) if sha else None,
+            )
+        )
     return out
 
 
@@ -582,6 +597,40 @@ def verify(
 
     if should_fail:
         raise typer.Exit(code=1)
+
+
+@app.command(name="diff")
+def diff_cmd(
+    key: Annotated[str, typer.Argument(help="Note id (e.g. 0007 or 7) or topic slug.")],
+    repo: RepoOpt = None,
+) -> None:
+    """Show what changed under a note's pins since they were pinned.
+
+    For each reference: git diff of its path from the last commit before the
+    pin time to the working tree (uncommitted drift included). Pairs with
+    `verify --update`'s re-read list — this is how you check whether the
+    note's claim still holds.
+    """
+    repo_root = _resolve_repo(repo)
+    try:
+        note, _body, _path = read_note(repo_root, key)
+    except (NoteNotFoundError, AmbiguousNoteSelectorError) as exc:
+        err_console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=2) from exc
+    if not is_git_repo(repo_root):
+        console.print("[dim]not a git repository — fieldnotes diff needs git history[/dim]")
+        return
+    if not note.references:
+        console.print(f"[dim]note {note.id} has no references[/dim]")
+        return
+    console.print(f"[bold]{note.id} ({note.topic})[/bold] — {note.title}")
+    for rd in diff_note(repo_root, note):
+        base = f", base {rd.base[:10]}" if rd.base else ""
+        console.print(f"[cyan]── {rd.reference.path}[/cyan] ({pin_descriptor(rd.reference)}{base})")
+        if rd.message is not None:
+            console.print(f"  [dim]{rd.message}[/dim]")
+        if rd.diff is not None:
+            console.print(rd.diff, markup=False, highlight=False)
 
 
 @app.command()
