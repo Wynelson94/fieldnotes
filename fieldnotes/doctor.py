@@ -109,6 +109,7 @@ def check_hooks(settings_path: Path, expected_binary: str | None) -> list[CheckR
     for event, looking_for in (
         ("SessionStart", "brief"),
         ("PostToolUse", "touched"),
+        ("Stop", "handoff"),
     ):
         entries = hooks.get(event) or []
         matching = [

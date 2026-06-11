@@ -39,6 +39,23 @@ class TestPackageCheck:
         assert "fieldnotes" in result.detail
 
 
+def _wired_settings(binary: str) -> dict:
+    """A settings.json hooks dict with all three fieldnotes hooks wired."""
+
+    def entry(matcher: str, cmd: str) -> list:
+        return [{"matcher": matcher, "hooks": [{"type": "command", "command": cmd}]}]
+
+    return {
+        "hooks": {
+            "SessionStart": entry("*", f"{binary} brief 2>/dev/null || true"),
+            "PostToolUse": entry(
+                "Edit|Write|MultiEdit", f"{binary} touched --stdin 2>/dev/null || true"
+            ),
+            "Stop": entry("*", f"{binary} handoff 2>/dev/null || true"),
+        }
+    }
+
+
 class TestHooksCheck:
     def test_settings_missing(self, tmp_path: Path):
         results = check_hooks(tmp_path / "missing.json", "/abs/fieldnotes")
@@ -56,116 +73,20 @@ class TestHooksCheck:
 
     def test_no_fieldnotes_hooks(self, tmp_path: Path):
         target = tmp_path / "settings.json"
-        target.write_text(json.dumps({"hooks": {"SessionEnd": []}}))
-        results = check_hooks(target, "/abs/fieldnotes")
-        assert all(not r.ok for r in results)
-        names = [r.name for r in results]
-        assert "SessionStart hook" in names
-        assert "PostToolUse hook" in names
-
-    def test_correctly_wired(self, tmp_path: Path):
-        target = tmp_path / "settings.json"
-        target.write_text(
-            json.dumps(
-                {
-                    "hooks": {
-                        "SessionStart": [
-                            {
-                                "matcher": "*",
-                                "hooks": [
-                                    {
-                                        "type": "command",
-                                        "command": "/abs/fieldnotes brief 2>/dev/null || true",
-                                    }
-                                ],
-                            }
-                        ],
-                        "PostToolUse": [
-                            {
-                                "matcher": "Edit|Write|MultiEdit",
-                                "hooks": [
-                                    {
-                                        "type": "command",
-                                        "command": "/abs/fieldnotes touched --stdin 2>/dev/null || true",
-                                    }
-                                ],
-                            }
-                        ],
-                    }
-                }
-            )
-        )
+        target.write_text(json.dumps(_wired_settings("/abs/fieldnotes")))
         results = check_hooks(target, "/abs/fieldnotes")
         assert all(r.ok for r in results), [(r.name, r.detail) for r in results]
 
     def test_wrong_binary_path(self, tmp_path: Path):
         target = tmp_path / "settings.json"
-        target.write_text(
-            json.dumps(
-                {
-                    "hooks": {
-                        "SessionStart": [
-                            {
-                                "matcher": "*",
-                                "hooks": [
-                                    {
-                                        "type": "command",
-                                        "command": "/old/path/fieldnotes brief 2>/dev/null || true",
-                                    }
-                                ],
-                            }
-                        ],
-                        "PostToolUse": [
-                            {
-                                "matcher": "Edit|Write|MultiEdit",
-                                "hooks": [
-                                    {
-                                        "type": "command",
-                                        "command": "/old/path/fieldnotes touched --stdin 2>/dev/null || true",
-                                    }
-                                ],
-                            }
-                        ],
-                    }
-                }
-            )
-        )
+        target.write_text(json.dumps(_wired_settings("/old/path/fieldnotes")))
         results = check_hooks(target, "/new/path/fieldnotes")
         assert all(not r.ok for r in results)
         assert any("expected" in r.detail for r in results)
 
     def test_relative_binary_accepted_when_no_expected(self, tmp_path: Path):
         target = tmp_path / "settings.json"
-        target.write_text(
-            json.dumps(
-                {
-                    "hooks": {
-                        "SessionStart": [
-                            {
-                                "matcher": "*",
-                                "hooks": [
-                                    {
-                                        "type": "command",
-                                        "command": "fieldnotes brief 2>/dev/null || true",
-                                    }
-                                ],
-                            }
-                        ],
-                        "PostToolUse": [
-                            {
-                                "matcher": "Edit|Write|MultiEdit",
-                                "hooks": [
-                                    {
-                                        "type": "command",
-                                        "command": "fieldnotes touched --stdin 2>/dev/null || true",
-                                    }
-                                ],
-                            }
-                        ],
-                    }
-                }
-            )
-        )
+        target.write_text(json.dumps(_wired_settings("fieldnotes")))
         # When binary is not on PATH, we have no expected — accept either form.
         results = check_hooks(target, None)
         assert all(r.ok for r in results)

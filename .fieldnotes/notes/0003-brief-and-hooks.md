@@ -11,8 +11,8 @@ references:
 - advisory: false
   lines: null
   path: fieldnotes/cli.py
-  pinned_at: '2026-06-11T18:21:17.310361Z'
-  sha: e9018449f00a3059b2e8f77a461fe5a2ffa6847c509387ed82104c8e7c4e1c2e
+  pinned_at: '2026-06-11T18:24:25.855379Z'
+  sha: aaf30f02d9a7873ef6a6c557cca72ccd1d51798daa2aff45a7de8858b56c1075
   symbol: null
 session_id: null
 superseded_by: null

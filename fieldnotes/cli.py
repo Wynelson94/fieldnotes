@@ -16,7 +16,7 @@ from rich.console import Console
 from rich.table import Table
 
 from fieldnotes import __version__
-from fieldnotes.brief import build_brief
+from fieldnotes.brief import build_brief, recent_git_paths
 from fieldnotes.diffcmd import diff_note, is_git_repo, pin_descriptor
 from fieldnotes.doctor import run_diagnostics
 from fieldnotes.gaps import churn_map, coverage_paths, hottest_gap, uncovered_by_churn
@@ -971,6 +971,53 @@ def brief(
 
 
 @app.command()
+def handoff(
+    repo: RepoOpt = None,
+) -> None:
+    """Session-end check: what changed vs what's documented. For the Stop hook.
+
+    Shows which changed files are covered by notes (and by which claims),
+    which aren't, and asks the closing session to record what it learned —
+    or decline on purpose. Silent when there's nothing to say: no
+    .fieldnotes/, no git, or no changes.
+    """
+    try:
+        repo_root = find_repo_root(Path(repo) if repo is not None else Path.cwd())
+    except RepoNotInitializedError:
+        return
+    if git_toplevel(repo_root) is None:
+        return
+    changed = [p for p in recent_git_paths(repo_root, depth=1) if not p.startswith(".fieldnotes/")]
+    if not changed:
+        return
+    covered: list[tuple[str, list[tuple[Note, Path]]]] = []
+    uncovered: list[str] = []
+    for p in changed:
+        hits = notes_referencing(repo_root, p)
+        if hits:
+            covered.append((p, hits))
+        else:
+            uncovered.append(p)
+    if not covered and not uncovered:
+        return
+    console.print("[bold]fieldnotes handoff[/bold] · session changes vs notes")
+    if covered:
+        console.print("  [green]covered:[/green]")
+        for p, hits in covered:
+            for n, _np in hits:
+                console.print(f"    {p} — {n.id} {n.title}")
+    if uncovered:
+        console.print(f"  [yellow]no notes:[/yellow] {', '.join(uncovered[:10])}")
+        console.print(
+            "  If this session learned something durable and non-obvious about these, "
+            "record it:\n"
+            "    fieldnotes add --topic <slug> --title ... --body ... --refs <path>  "
+            "(or --from - for a draft)\n"
+            "  [dim]Declining is fine — but decline on purpose.[/dim]"
+        )
+
+
+@app.command()
 def touched(
     path: Annotated[
         str | None,
@@ -1045,6 +1092,17 @@ def _build_hook_snippet(binary: str = "fieldnotes") -> dict:
                         {
                             "type": "command",
                             "command": f"{quoted} touched --stdin 2>/dev/null || true",
+                        }
+                    ],
+                }
+            ],
+            "Stop": [
+                {
+                    "matcher": "*",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": f"{quoted} handoff 2>/dev/null || true",
                         }
                     ],
                 }

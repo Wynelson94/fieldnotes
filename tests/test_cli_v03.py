@@ -84,7 +84,7 @@ class TestTouched:
 class TestMergeHooks:
     def test_adds_to_empty(self):
         merged, added = _merge_hooks({}, _HOOK_SNIPPET["hooks"])
-        assert added == 2
+        assert added == 3
         assert "SessionStart" in merged["hooks"]
         assert "PostToolUse" in merged["hooks"]
 
@@ -101,7 +101,7 @@ class TestMergeHooks:
             }
         }
         merged, added = _merge_hooks(existing, _HOOK_SNIPPET["hooks"])
-        assert added == 2
+        assert added == 3
         assert "Stop" in merged["hooks"]
         assert merged["hooks"]["Stop"][0]["hooks"][0]["command"] == "echo done"
 
