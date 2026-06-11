@@ -19,7 +19,7 @@ from fieldnotes import __version__
 from fieldnotes.brief import build_brief
 from fieldnotes.diffcmd import diff_note, is_git_repo, pin_descriptor
 from fieldnotes.doctor import run_diagnostics
-from fieldnotes.githook import install_git_hook
+from fieldnotes.githook import git_hook_installed, git_toplevel, install_git_hook
 from fieldnotes.index import rebuild_index
 from fieldnotes.models import SYMBOL_RE, Confidence, Note, Reference
 from fieldnotes.search import search as do_search
@@ -460,6 +460,21 @@ def get(
     console.print(path.read_text())
 
 
+def _print_gate_tip(repo_root: Path) -> None:
+    """One dim line nudging gate adoption — only when it would actually help.
+
+    Real-world correlation: gated repos stay <20% stale, ungated drift to
+    50-100%. Callers gate on output mode (never in --check/--quiet/--json).
+    """
+    if git_toplevel(repo_root) is None:
+        return
+    installed, _ = git_hook_installed(repo_root)
+    if not installed:
+        console.print(
+            "[dim]tip: `fieldnotes install-git-hook` blocks commits that leave a note stale[/dim]"
+        )
+
+
 def _changed_refs(status: NoteStatus, rebase_results: list[RebaseResult]) -> list[str]:
     """The note's stale refs whose pinned content *changed* rather than moved.
 
@@ -592,6 +607,8 @@ def verify(
     if not stale:
         if not quiet:
             console.print(f"[green]all {len(statuses)} notes verified[/green]")
+            if not check and not json_out:
+                _print_gate_tip(repo_root)
         return
 
     if update:
@@ -624,6 +641,9 @@ def verify(
         for r in s.references:
             if r.is_problem:
                 console.print(f"  [yellow]{r.state}[/yellow]: {r.reference.path}")
+
+    if not quiet and not check and not json_out:
+        _print_gate_tip(repo_root)
 
     if should_fail:
         raise typer.Exit(code=1)
@@ -844,6 +864,7 @@ def brief(
             console.print(f"    [cyan]{path}[/cyan]")
             for n, _p in hits:
                 console.print(f"      · {n.id} {n.title}  [dim]({n.confidence.value})[/dim]")
+    _print_gate_tip(repo_root)
 
 
 @app.command()
